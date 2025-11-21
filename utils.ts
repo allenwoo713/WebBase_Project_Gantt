@@ -1,4 +1,4 @@
-import { Task, Dependency, DependencyType, ProjectSettings, Holiday } from './types';
+import { Task, Dependency, DependencyType, ProjectSettings, Holiday, Member } from './types';
 
 // --- Standard Date Math ---
 
@@ -194,4 +194,82 @@ export const calculateCriticalPath = (tasks: Task[], dependencies: Dependency[])
   }
 
   return criticalTasks;
+};
+
+// --- Export CSV ---
+
+export const exportTasksToCSV = (tasks: Task[], members: Member[], dependencies: Dependency[]) => {
+    const headers = [
+        'Task Name', 
+        'Priority', 
+        'Role', 
+        'Owner', 
+        'Owner Effort', 
+        'Team Members (Effort)', 
+        'Start Date', 
+        'End Date', 
+        'Duration (Days)', 
+        'Progress (%)', 
+        'Predecessors', 
+        'Deliverable', 
+        'Baseline Score', 
+        'Actual Score', 
+        'Description'
+    ];
+    
+    const rows = tasks.map(task => {
+        // Owner
+        const owner = members.find(m => m.id === task.ownerId)?.name || '';
+        
+        // Team Members
+        const teamStr = (task.assignments || []).map(a => {
+            const m = members.find(mem => mem.id === a.memberId);
+            return m ? `${m.name} (${a.effort}%)` : '';
+        }).filter(s => s).join('; ');
+
+        // Predecessors (Task Names)
+        const preds = dependencies
+            .filter(d => d.targetId === task.id)
+            .map(d => {
+                const src = tasks.find(t => t.id === d.sourceId);
+                return src ? src.name : '';
+            })
+            .filter(s => s)
+            .join('; ');
+
+        // Escape function for CSV fields (handles quotes, commas, newlines)
+        const escape = (str: string) => {
+            if (!str) return '';
+            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+
+        return [
+            escape(task.name),
+            task.priority || 'Medium',
+            escape(task.role || ''),
+            escape(owner),
+            task.ownerEffort || 100,
+            escape(teamStr),
+            formatDate(task.start),
+            formatDate(task.end),
+            task.duration,
+            task.progress,
+            escape(preds),
+            escape(task.deliverable || ''),
+            escape(task.baselineScore || ''),
+            escape(task.score || ''),
+            escape(task.description || '')
+        ].join(',');
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(','), ...rows].join('\n'); // Add BOM for Excel compatibility
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `tasks_export_${formatDate(new Date())}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
 };

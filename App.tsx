@@ -5,10 +5,10 @@ import TaskList from './components/TaskList';
 import TaskModal from './components/TaskModal';
 import MemberManager from './components/MemberManager';
 import SettingsModal from './components/SettingsModal';
-import { addDays, addMonths, addYears, getDatesRange, calculateCriticalPath, diffDays, diffProjectDays, addProjectDays } from './utils';
+import { addDays, addMonths, addYears, getDatesRange, calculateCriticalPath, diffDays, diffProjectDays, addProjectDays, exportTasksToCSV } from './utils';
 import { 
     Table, Columns, BarChart3, Save, Plus, ChevronLeft, ChevronRight, FolderOpen,
-    Users, Settings as SettingsIcon, AlertTriangle
+    Users, Settings as SettingsIcon, AlertTriangle, Download
 } from 'lucide-react';
 
 const STORAGE_KEY = 'progantt-data-v2';
@@ -304,6 +304,17 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-3">
+            {/* Export CSV Button (only in Table mode) */}
+            {viewMode === ViewMode.Table && (
+                <button 
+                    onClick={() => exportTasksToCSV(tasks, members, dependencies)} 
+                    className="flex items-center px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 mr-2"
+                    title="Export as CSV"
+                >
+                    <Download size={16} className="mr-1"/> Export
+                </button>
+            )}
+
             <div className="flex items-center bg-gray-50 rounded-md border border-gray-200 p-1 space-x-1">
                 <button onClick={() => handleStep('prev')} className="p-1 hover:bg-gray-200 rounded"><ChevronLeft size={16}/></button>
                 <button onClick={goToToday} className="px-2 py-0.5 text-xs font-medium bg-white border rounded shadow-sm hover:bg-gray-50">Today</button>
