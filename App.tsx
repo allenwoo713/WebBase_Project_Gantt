@@ -1,14 +1,14 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Task, Dependency, ViewMode, TimeScale, DependencyType, ProjectData, Member } from './types';
+import { Task, Dependency, ViewMode, TimeScale, DependencyType, ProjectData, Member, ProjectSettings, Holiday } from './types';
 import GanttChart from './components/GanttChart';
 import TaskList from './components/TaskList';
 import TaskModal from './components/TaskModal';
 import MemberManager from './components/MemberManager';
-import { addDays, addMonths, addYears, getDatesRange, calculateCriticalPath, diffDays } from './utils';
+import SettingsModal from './components/SettingsModal';
+import { addDays, addMonths, addYears, getDatesRange, calculateCriticalPath, diffDays, diffProjectDays, addProjectDays } from './utils';
 import { 
     Table, Columns, BarChart3, Save, Plus, ChevronLeft, ChevronRight, FolderOpen,
-    Users
+    Users, Settings as SettingsIcon
 } from 'lucide-react';
 
 const STORAGE_KEY = 'progantt-data-v2';
@@ -24,24 +24,26 @@ const INITIAL_MEMBERS: Member[] = [
 const INITIAL_TASKS: Task[] = [
   { id: '1', name: 'Project Initiation', start: new Date(2024, 5, 1), end: new Date(2024, 5, 5), duration: 4, progress: 100, ownerId: 'm1', role: 'PM', type: 'phase' },
   { id: '2', name: 'Requirement Analysis', start: new Date(2024, 5, 6), end: new Date(2024, 5, 10), duration: 4, progress: 60, ownerId: 'm2', role: 'Analyst', type: 'task' },
-  { id: '3', name: 'Design Phase', start: new Date(2024, 5, 11), end: new Date(2024, 5, 18), duration: 7, progress: 0, ownerId: 'm3', role: 'Designer', type: 'task' },
-  { id: '4', name: 'Development', start: new Date(2024, 5, 15), end: new Date(2024, 5, 30), duration: 15, progress: 0, ownerId: 'm4', role: 'Dev', type: 'task' },
-  { id: '5', name: 'Testing', start: new Date(2024, 6, 1), end: new Date(2024, 6, 10), duration: 9, progress: 0, ownerId: 'm5', role: 'QA', type: 'task' },
-  { id: '6', name: 'Final Review', start: new Date(2024, 6, 11), end: new Date(2024, 6, 12), duration: 1, progress: 0, ownerId: 'm1', role: 'PM', type: 'milestone', color: '#f59e0b' },
 ];
 
 const INITIAL_DEPENDENCIES: Dependency[] = [
   { id: 'd1', sourceId: '1', targetId: '2', type: DependencyType.FS },
-  { id: 'd2', sourceId: '2', targetId: '3', type: DependencyType.FS },
-  { id: 'd3', sourceId: '3', targetId: '4', type: DependencyType.FS },
-  { id: 'd4', sourceId: '4', targetId: '5', type: DependencyType.FS },
-  { id: 'd5', sourceId: '5', targetId: '6', type: DependencyType.FS },
 ];
+
+const INITIAL_SETTINGS: ProjectSettings = {
+    showDependencies: true,
+    includeWeekends: true,
+    holidays: [],
+    makeUpDays: [],
+    projectFilename: 'MyProject',
+    projectSavePath: ''
+};
 
 const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
   const [dependencies, setDependencies] = useState<Dependency[]>(INITIAL_DEPENDENCIES);
   const [members, setMembers] = useState<Member[]>(INITIAL_MEMBERS);
+  const [settings, setSettings] = useState<ProjectSettings>(INITIAL_SETTINGS);
   
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Split);
   const [timeScale, setTimeScale] = useState<TimeScale>(TimeScale.Day);
@@ -53,10 +55,10 @@ const App: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMemberManagerOpen, setIsMemberManagerOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Derived State
   const columnWidth = useMemo(() => {
       switch(timeScale) {
           case TimeScale.Day: return 50;
@@ -76,33 +78,49 @@ const App: React.FC = () => {
       return calculateCriticalPath(tasks, dependencies);
   }, [tasks, dependencies, showCriticalPath]);
 
-  // Persistence
+  // Persistence & Migration
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed: ProjectData = JSON.parse(saved);
-        setTasks(parsed.tasks.map(t => ({
-          ...t,
-          start: new Date(t.start),
-          end: new Date(t.end)
-        })));
+        setTasks(parsed.tasks.map(t => ({ ...t, start: new Date(t.start), end: new Date(t.end) })));
         setDependencies(parsed.dependencies);
         if(parsed.members) setMembers(parsed.members);
+        
+        // Migration for Holidays (String[] -> Holiday[])
+        let loadedSettings = parsed.settings || INITIAL_SETTINGS;
+        if (loadedSettings.holidays && loadedSettings.holidays.length > 0) {
+            // Check if it is old string format
+            if (typeof loadedSettings.holidays[0] === 'string') {
+                 const oldHolidays = loadedSettings.holidays as unknown as string[];
+                 const newHolidays: Holiday[] = oldHolidays.map((hStr, idx) => ({
+                     id: `migrated-${idx}`,
+                     name: 'Holiday',
+                     start: hStr,
+                     end: hStr
+                 }));
+                 loadedSettings = { ...loadedSettings, holidays: newHolidays };
+            }
+        }
+        setSettings(loadedSettings);
+
       } catch (e) { console.error("Failed load", e); }
     }
   }, []);
 
   const saveProject = () => {
-    const data: ProjectData = { tasks, dependencies, members };
+    const data: ProjectData = { tasks, dependencies, members, settings };
     const json = JSON.stringify(data, null, 2);
     localStorage.setItem(STORAGE_KEY, json);
+    
+    const filename = settings.projectFilename ? `${settings.projectFilename}.json` : `progantt-${new Date().toISOString().slice(0,10)}.json`;
     
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `progantt-${new Date().toISOString().slice(0,10)}.json`;
+    a.download = filename;
     a.click();
   };
 
@@ -117,6 +135,22 @@ const App: React.FC = () => {
               setDependencies(parsed.dependencies);
               if(parsed.members) setMembers(parsed.members);
               
+              // Migration on Open
+              let loadedSettings = parsed.settings || INITIAL_SETTINGS;
+              if (loadedSettings.holidays && loadedSettings.holidays.length > 0) {
+                    if (typeof loadedSettings.holidays[0] === 'string') {
+                        const oldHolidays = loadedSettings.holidays as unknown as string[];
+                        const newHolidays: Holiday[] = oldHolidays.map((hStr, idx) => ({
+                            id: `migrated-${idx}`,
+                            name: 'Holiday',
+                            start: hStr,
+                            end: hStr
+                        }));
+                        loadedSettings = { ...loadedSettings, holidays: newHolidays };
+                    }
+              }
+              setSettings(loadedSettings);
+              
               if (parsed.tasks.length > 0) {
                 const minDate = new Date(Math.min(...parsed.tasks.map(t => new Date(t.start).getTime())));
                 setViewStartDate(minDate);
@@ -126,7 +160,6 @@ const App: React.FC = () => {
       reader.readAsText(file);
   };
 
-  // Handlers
   const handleStep = (direction: 'prev' | 'next') => {
       const factor = direction === 'next' ? 1 : -1;
       switch(timeScale) {
@@ -144,12 +177,36 @@ const App: React.FC = () => {
       setViewStartDate(today);
   };
 
+  // RECALCULATE DURATION FOR ALL TASKS ON SETTINGS CHANGE
+  const handleSettingsSave = (newSettings: ProjectSettings) => {
+      setSettings(newSettings);
+      setTasks(prevTasks => prevTasks.map(t => {
+          // Re-run the calculation logic with the NEW settings
+          const duration = diffProjectDays(t.start, t.end, newSettings);
+          return { ...t, duration };
+      }));
+  };
+
   const handleTaskUpdate = (updatedTask: Task) => {
-    setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+    setTasks(prev => prev.map(t => {
+        if (t.id !== updatedTask.id) return t;
+        if (t.start.getTime() !== updatedTask.start.getTime()) {
+             const newEnd = addProjectDays(updatedTask.start, t.duration, settings);
+             return { ...updatedTask, end: newEnd };
+        }
+        if (t.end.getTime() !== updatedTask.end.getTime()) {
+             const newDuration = diffProjectDays(updatedTask.start, updatedTask.end, settings);
+             return { ...updatedTask, duration: newDuration };
+        }
+        return updatedTask;
+    }));
   };
 
   const handleTaskSave = (updatedTask: Task, newDeps: Dependency[]) => {
-      handleTaskUpdate(updatedTask);
+      const duration = diffProjectDays(updatedTask.start, updatedTask.end, settings);
+      const finalTask = { ...updatedTask, duration };
+      
+      handleTaskUpdate(finalTask);
       setDependencies(prev => {
           const others = prev.filter(d => d.targetId !== updatedTask.id);
           return [...others, ...newDeps];
@@ -157,17 +214,15 @@ const App: React.FC = () => {
   };
 
   const handleTaskDelete = (id: string) => {
-      if(confirm('Delete this task?')) {
-          setTasks(prev => prev.filter(t => t.id !== id));
-          setDependencies(prev => prev.filter(d => d.sourceId !== id && d.targetId !== id));
-          setIsModalOpen(false);
-      }
+      setTasks(prev => prev.filter(t => t.id !== id));
+      setDependencies(prev => prev.filter(d => d.sourceId !== id && d.targetId !== id));
+      setIsModalOpen(false);
   };
 
   const handleAddTask = () => {
     const newId = Math.random().toString(36).substr(2, 9);
     const start = new Date(viewStartDate);
-    const end = addDays(start, 2);
+    const end = addProjectDays(start, 2, settings); 
     const newTask: Task = {
         id: newId, name: 'New Task', start, end, duration: 2, progress: 0, type: 'task'
     };
@@ -206,6 +261,10 @@ const App: React.FC = () => {
            
            <button onClick={() => setIsMemberManagerOpen(true)} className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
                <Users size={16} className="mr-2"/> Members
+           </button>
+           
+           <button onClick={() => setIsSettingsOpen(true)} className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+               <SettingsIcon size={16} className="mr-2"/> Settings
            </button>
 
            <select 
@@ -316,6 +375,7 @@ const App: React.FC = () => {
                   viewEndDate={viewEndDate}
                   columnWidth={columnWidth}
                   showCriticalPath={showCriticalPath}
+                  settings={settings}
                   onTaskUpdate={handleTaskUpdate}
                   onDependencyDelete={(id) => setDependencies(prev => prev.filter(d => d.id !== id))}
                   onDependencyCreate={handleDependencyCreate}
@@ -337,6 +397,7 @@ const App: React.FC = () => {
             onClose={() => setIsModalOpen(false)}
             onSave={handleTaskSave}
             onDelete={handleTaskDelete}
+            settings={settings}
           />
       )}
 
@@ -345,6 +406,13 @@ const App: React.FC = () => {
           onClose={() => setIsMemberManagerOpen(false)}
           members={members}
           onUpdateMembers={setMembers}
+      />
+
+      <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          settings={settings}
+          onSave={handleSettingsSave}
       />
     </div>
   );

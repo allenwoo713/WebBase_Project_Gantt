@@ -1,5 +1,5 @@
 {
-  "name": "ProGantt Master",
+  "name": "Project Gantt Master",
   "description": "A professional, web-based Gantt chart application featuring full project scheduling capabilities including dependency management (FS/SF/FF), critical path analysis, view switching (Table/Gantt/Split), and local data persistence.",
   "requestFramePermissions": []
 }

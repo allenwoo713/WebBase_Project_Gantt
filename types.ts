@@ -1,4 +1,3 @@
-
 export enum ViewMode {
     Table = 'TABLE',
     Gantt = 'GANTT',
@@ -44,6 +43,7 @@ export enum ViewMode {
   export interface Task {
     id: string;
     name: string;
+    description?: string;
     start: Date;
     end: Date;
     duration: number; // in days
@@ -65,11 +65,28 @@ export enum ViewMode {
     isExpanded?: boolean;
     color?: string;
   }
+
+  export interface Holiday {
+    id: string;
+    name: string;
+    start: string; // YYYY-MM-DD
+    end: string;   // YYYY-MM-DD
+  }
+
+  export interface ProjectSettings {
+    showDependencies: boolean;
+    includeWeekends: boolean; // If false, duration only counts Mon-Fri
+    holidays: Holiday[]; 
+    makeUpDays: string[]; // YYYY-MM-DD - Days that are working days even if they are weekends
+    projectFilename?: string;
+    projectSavePath?: string; // Metadata for save path
+  }
   
   export interface ProjectData {
     tasks: Task[];
     dependencies: Dependency[];
     members: Member[];
+    settings?: ProjectSettings;
   }
   
   export const COLUMN_WIDTH = 60; 
