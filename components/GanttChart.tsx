@@ -1,17 +1,18 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Task, Dependency, ROW_HEIGHT, COLUMN_WIDTH, DependencyType } from '../types';
+import React, { useRef, useState, useMemo } from 'react';
+import { Task, Dependency, ROW_HEIGHT } from '../types';
 import { addDays, diffDays, getDatesRange } from '../utils';
-import { Info, XCircle } from 'lucide-react';
 
 interface GanttChartProps {
   tasks: Task[];
   dependencies: Dependency[];
   viewStartDate: Date;
   viewEndDate: Date;
+  columnWidth: number;
   showCriticalPath: boolean;
   onTaskUpdate: (task: Task) => void;
   onDependencyDelete: (id: string) => void;
   onDependencyCreate: (sourceId: string, targetId: string) => void;
+  onTaskClick: (task: Task) => void;
   criticalTaskIds: Set<string>;
 }
 
@@ -20,10 +21,12 @@ const GanttChart: React.FC<GanttChartProps> = ({
   dependencies,
   viewStartDate,
   viewEndDate,
+  columnWidth,
   showCriticalPath,
   onTaskUpdate,
   onDependencyDelete,
   onDependencyCreate,
+  onTaskClick,
   criticalTaskIds
 }) => {
   const [draggingTask, setDraggingTask] = useState<{ id: string, startX: number, originalStart: Date, type: 'move' | 'resize-l' | 'resize-r' } | null>(null);
@@ -32,12 +35,12 @@ const GanttChart: React.FC<GanttChartProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
 
   const dates = useMemo(() => getDatesRange(viewStartDate, viewEndDate), [viewStartDate, viewEndDate]);
-  const totalWidth = dates.length * COLUMN_WIDTH;
-  const totalHeight = tasks.length * ROW_HEIGHT + 40; // Extra buffer
+  const totalWidth = dates.length * columnWidth;
+  const totalHeight = tasks.length * ROW_HEIGHT + 40; 
 
   // --- Helpers ---
-  const getTaskX = (date: Date) => diffDays(date, viewStartDate) * COLUMN_WIDTH;
-  const getTaskWidth = (start: Date, end: Date) => diffDays(end, start) * COLUMN_WIDTH;
+  const getTaskX = (date: Date) => diffDays(date, viewStartDate) * columnWidth;
+  const getTaskWidth = (start: Date, end: Date) => Math.max(diffDays(end, start) * columnWidth, columnWidth / 4);
 
   // --- Handlers ---
   const handleMouseDown = (e: React.MouseEvent, task: Task, action: 'move' | 'resize-l' | 'resize-r' | 'link') => {
@@ -62,23 +65,17 @@ const GanttChart: React.FC<GanttChartProps> = ({
   const handleMouseMove = (e: React.MouseEvent) => {
     if (draggingTask) {
       const dx = e.clientX - draggingTask.startX;
-      const daysDiff = Math.round(dx / COLUMN_WIDTH);
+      const daysDiff = Math.round(dx / columnWidth);
       
       const taskIndex = tasks.findIndex(t => t.id === draggingTask.id);
       if (taskIndex === -1) return;
       const task = tasks[taskIndex];
 
-      const newStart = new Date(task.start);
-      const newEnd = new Date(task.end);
-
       if (draggingTask.type === 'move') {
-        // For move, we update based on original to avoid drift, but for simplicity here we calc relative
-        // Better: calculate target date from originalStart + daysDiff
         const targetStart = addDays(draggingTask.originalStart, daysDiff);
         const duration = diffDays(task.end, task.start);
         onTaskUpdate({ ...task, start: targetStart, end: addDays(targetStart, duration) });
       } 
-      // Note: Resize logic would go here (left/right handles)
     }
 
     if (linkingTask) {
@@ -111,19 +108,25 @@ const GanttChart: React.FC<GanttChartProps> = ({
     <g className="grid-lines select-none pointer-events-none">
       {dates.map((d, i) => {
          const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+         const isMonthStart = d.getDate() === 1;
+         
+         // Optimization: If columnWidth is very small (zoomed out), only draw month starts
+         if (columnWidth < 20 && !isMonthStart) return null;
+
          return (
             <React.Fragment key={i}>
             <line
-                x1={i * COLUMN_WIDTH}
+                x1={i * columnWidth}
                 y1={0}
-                x2={i * COLUMN_WIDTH}
+                x2={i * columnWidth}
                 y2={totalHeight}
-                stroke="#e2e8f0"
-                strokeDasharray={isWeekend ? "4 2" : ""}
+                stroke={isMonthStart ? "#cbd5e1" : "#e2e8f0"}
+                strokeWidth={isMonthStart ? 1 : 1}
+                strokeDasharray={!isMonthStart && isWeekend ? "4 2" : ""}
             />
             {/* Today Marker */}
             {diffDays(d, new Date()) === 0 && (
-                <rect x={i*COLUMN_WIDTH} y={0} width={COLUMN_WIDTH} height={totalHeight} fill="rgba(59, 130, 246, 0.1)" />
+                <rect x={i*columnWidth} y={0} width={columnWidth} height={totalHeight} fill="rgba(59, 130, 246, 0.1)" />
             )}
             </React.Fragment>
          )
@@ -140,7 +143,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
       const sourceIdx = tasks.findIndex(t => t.id === dep.sourceId);
       const targetIdx = tasks.findIndex(t => t.id === dep.targetId);
 
-      const x1 = getTaskX(source.end) + COLUMN_WIDTH; // Right edge of source
+      const x1 = getTaskX(source.end) + columnWidth; // Right edge of source
       const y1 = sourceIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
       const x2 = getTaskX(target.start); // Left edge of target
       const y2 = targetIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
@@ -148,26 +151,22 @@ const GanttChart: React.FC<GanttChartProps> = ({
       // Path Logic: Simple Elbow
       const midX = x1 + 10;
       
-      // Determine color
       let color = "#94a3b8";
       let width = 1.5;
       if (showCriticalPath) {
-          // If both tasks are critical, line is critical
           if (criticalTaskIds.has(source.id) && criticalTaskIds.has(target.id)) {
-              color = "#ef4444"; // Red
+              color = "#ef4444"; 
               width = 2.5;
           }
       }
 
-      // Handles FS relationship visuals
-      const path = `M ${x1-COLUMN_WIDTH} ${y1} L ${x1-COLUMN_WIDTH + 10} ${y1} L ${x1-COLUMN_WIDTH + 10} ${y2} L ${x2} ${y2}`;
+      const path = `M ${x1-columnWidth} ${y1} L ${x1-columnWidth + 10} ${y1} L ${x1-columnWidth + 10} ${y2} L ${x2} ${y2}`;
 
       return (
         <g key={dep.id} className="cursor-pointer group" onClick={() => {
             if(confirm('Delete this dependency?')) onDependencyDelete(dep.id);
         }}>
           <path d={path} fill="none" stroke={color} strokeWidth={width} markerEnd="url(#arrow)" className="group-hover:stroke-blue-500 group-hover:stroke-[3px] transition-all" />
-          {/* Hit area for easier clicking */}
           <path d={path} fill="none" stroke="transparent" strokeWidth={10} />
         </g>
       );
@@ -201,7 +200,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
         {/* Render Tasks */}
         {tasks.map((task, index) => {
           const x = getTaskX(task.start);
-          const w = Math.max(getTaskWidth(task.start, task.end), COLUMN_WIDTH / 4); // Min width
+          const w = getTaskWidth(task.start, task.end);
           const y = index * ROW_HEIGHT + 6;
           const h = ROW_HEIGHT - 12;
 
@@ -212,8 +211,9 @@ const GanttChart: React.FC<GanttChartProps> = ({
             <g key={task.id} 
                onMouseEnter={() => setHoveredTask(task.id)}
                onMouseLeave={() => setHoveredTask(null)}
+               onDoubleClick={() => onTaskClick(task)}
             >
-                {/* Connection Point (Right) - Start dragging for dependency */}
+                {/* Connection Point */}
                 <circle 
                     cx={x + w} 
                     cy={y + h/2} 
@@ -248,12 +248,14 @@ const GanttChart: React.FC<GanttChartProps> = ({
                     className="pointer-events-none"
                 />
 
-                {/* Label */}
-                <text x={x + w + 8} y={y + h/1.5} fontSize="12" fill="#475569" className="select-none font-medium">
-                    {task.name}
-                </text>
+                {/* Label - Hide if too small */}
+                {columnWidth > 10 && (
+                    <text x={x + w + 8} y={y + h/1.5} fontSize="12" fill="#475569" className="select-none font-medium">
+                        {task.name}
+                    </text>
+                )}
 
-                {/* Hover Tooltip Info (Simulated with group) */}
+                {/* Hover Tooltip */}
                 {hoveredTask === task.id && !draggingTask && !linkingTask && (
                     <g transform={`translate(${x}, ${y - 30})`}>
                         <rect width={160} height={70} rx={4} fill="white" stroke="#e2e8f0" className="shadow-lg" />
@@ -266,7 +268,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
           );
         })}
 
-        {/* Temporary Line when dragging for new dependency */}
+        {/* Temporary Line */}
         {linkingTask && (
             <line 
                 x1={linkingTask.startX} 

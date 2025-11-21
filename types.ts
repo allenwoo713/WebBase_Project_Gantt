@@ -6,8 +6,10 @@ export enum ViewMode {
   
   export enum TimeScale {
     Day = 'DAY',
-    Week = 'WEEK',
-    Month = 'MONTH'
+    Month = 'MONTH',
+    Quarter = 'QUARTER',
+    HalfYear = 'HALF_YEAR',
+    Year = 'YEAR'
   }
   
   export enum DependencyType {
@@ -32,6 +34,10 @@ export enum ViewMode {
     duration: number; // in days
     progress: number; // 0-100
     owner: string;
+    role?: string;
+    deliverable?: string;
+    baselineScore?: string;
+    score?: string;
     type: 'task' | 'milestone' | 'phase';
     parentId?: string;
     isExpanded?: boolean;
@@ -43,6 +49,6 @@ export enum ViewMode {
     dependencies: Dependency[];
   }
   
-  export const COLUMN_WIDTH = 60; // Width of a day column in pixels
+  export const COLUMN_WIDTH = 60; // Default, but can change dynamically
   export const ROW_HEIGHT = 40;   // Height of a task row in pixels
   export const HEADER_HEIGHT = 50;
