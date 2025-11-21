@@ -1,3 +1,4 @@
+
 export enum ViewMode {
     Table = 'TABLE',
     Gantt = 'GANTT',
@@ -26,6 +27,20 @@ export enum ViewMode {
     type: DependencyType;
   }
   
+  export interface Member {
+    id: string;
+    name: string;
+    role: string;
+    email?: string;
+    phone?: string;
+    color?: string; // Avatar bg color
+  }
+
+  export interface TaskAssignment {
+    memberId: string;
+    effort: number; // 0-100 percentage
+  }
+
   export interface Task {
     id: string;
     name: string;
@@ -33,11 +48,18 @@ export enum ViewMode {
     end: Date;
     duration: number; // in days
     progress: number; // 0-100
-    owner: string;
+    
+    // Assignment
+    ownerId?: string;
+    ownerEffort?: number;
+    assignments?: TaskAssignment[]; // Additional team members
+
+    // Metadata
     role?: string;
     deliverable?: string;
     baselineScore?: string;
     score?: string;
+    
     type: 'task' | 'milestone' | 'phase';
     parentId?: string;
     isExpanded?: boolean;
@@ -47,8 +69,9 @@ export enum ViewMode {
   export interface ProjectData {
     tasks: Task[];
     dependencies: Dependency[];
+    members: Member[];
   }
   
-  export const COLUMN_WIDTH = 60; // Default, but can change dynamically
-  export const ROW_HEIGHT = 40;   // Height of a task row in pixels
+  export const COLUMN_WIDTH = 60; 
+  export const ROW_HEIGHT = 44;   
   export const HEADER_HEIGHT = 50;

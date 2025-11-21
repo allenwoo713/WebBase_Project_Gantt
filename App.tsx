@@ -1,25 +1,33 @@
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Task, Dependency, ViewMode, TimeScale, DependencyType, ProjectData, COLUMN_WIDTH } from './types';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Task, Dependency, ViewMode, TimeScale, DependencyType, ProjectData, Member } from './types';
 import GanttChart from './components/GanttChart';
 import TaskList from './components/TaskList';
 import TaskModal from './components/TaskModal';
+import MemberManager from './components/MemberManager';
 import { addDays, addMonths, addYears, getDatesRange, calculateCriticalPath, diffDays } from './utils';
 import { 
-    Layout, Table, Columns, BarChart3, Save, Download, 
-    Trash2, Plus, ChevronLeft, ChevronRight, FolderOpen,
-    ZoomIn, ZoomOut, Network
+    Table, Columns, BarChart3, Save, Plus, ChevronLeft, ChevronRight, FolderOpen,
+    Users
 } from 'lucide-react';
 
-const STORAGE_KEY = 'progantt-data-v1';
+const STORAGE_KEY = 'progantt-data-v2';
+
+const INITIAL_MEMBERS: Member[] = [
+    { id: 'm1', name: 'Alice', role: 'Project Manager', email: 'alice@corp.com', color: '#3b82f6' },
+    { id: 'm2', name: 'Bob', role: 'Business Analyst', email: 'bob@corp.com', color: '#f59e0b' },
+    { id: 'm3', name: 'Charlie', role: 'UI Designer', email: 'charlie@corp.com', color: '#ec4899' },
+    { id: 'm4', name: 'Dave', role: 'Lead Dev', email: 'dave@corp.com', color: '#10b981' },
+    { id: 'm5', name: 'Eve', role: 'QA Engineer', email: 'eve@corp.com', color: '#8b5cf6' },
+];
 
 const INITIAL_TASKS: Task[] = [
-  { id: '1', name: 'Project Initiation', start: new Date(2024, 5, 1), end: new Date(2024, 5, 5), duration: 4, progress: 100, owner: 'Alice', role: 'PM', type: 'phase' },
-  { id: '2', name: 'Requirement Analysis', start: new Date(2024, 5, 6), end: new Date(2024, 5, 10), duration: 4, progress: 60, owner: 'Bob', role: 'Analyst', type: 'task' },
-  { id: '3', name: 'Design Phase', start: new Date(2024, 5, 11), end: new Date(2024, 5, 18), duration: 7, progress: 0, owner: 'Charlie', role: 'Designer', type: 'task' },
-  { id: '4', name: 'Development', start: new Date(2024, 5, 15), end: new Date(2024, 5, 30), duration: 15, progress: 0, owner: 'Dave', role: 'Dev', type: 'task' },
-  { id: '5', name: 'Testing', start: new Date(2024, 6, 1), end: new Date(2024, 6, 10), duration: 9, progress: 0, owner: 'Eve', role: 'QA', type: 'task' },
-  { id: '6', name: 'Final Review', start: new Date(2024, 6, 11), end: new Date(2024, 6, 12), duration: 1, progress: 0, owner: 'Alice', role: 'PM', type: 'milestone', color: '#f59e0b' },
+  { id: '1', name: 'Project Initiation', start: new Date(2024, 5, 1), end: new Date(2024, 5, 5), duration: 4, progress: 100, ownerId: 'm1', role: 'PM', type: 'phase' },
+  { id: '2', name: 'Requirement Analysis', start: new Date(2024, 5, 6), end: new Date(2024, 5, 10), duration: 4, progress: 60, ownerId: 'm2', role: 'Analyst', type: 'task' },
+  { id: '3', name: 'Design Phase', start: new Date(2024, 5, 11), end: new Date(2024, 5, 18), duration: 7, progress: 0, ownerId: 'm3', role: 'Designer', type: 'task' },
+  { id: '4', name: 'Development', start: new Date(2024, 5, 15), end: new Date(2024, 5, 30), duration: 15, progress: 0, ownerId: 'm4', role: 'Dev', type: 'task' },
+  { id: '5', name: 'Testing', start: new Date(2024, 6, 1), end: new Date(2024, 6, 10), duration: 9, progress: 0, ownerId: 'm5', role: 'QA', type: 'task' },
+  { id: '6', name: 'Final Review', start: new Date(2024, 6, 11), end: new Date(2024, 6, 12), duration: 1, progress: 0, ownerId: 'm1', role: 'PM', type: 'milestone', color: '#f59e0b' },
 ];
 
 const INITIAL_DEPENDENCIES: Dependency[] = [
@@ -33,6 +41,7 @@ const INITIAL_DEPENDENCIES: Dependency[] = [
 const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
   const [dependencies, setDependencies] = useState<Dependency[]>(INITIAL_DEPENDENCIES);
+  const [members, setMembers] = useState<Member[]>(INITIAL_MEMBERS);
   
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Split);
   const [timeScale, setTimeScale] = useState<TimeScale>(TimeScale.Day);
@@ -40,16 +49,18 @@ const App: React.FC = () => {
   const [viewDays, setViewDays] = useState<number>(30);
   const [showCriticalPath, setShowCriticalPath] = useState<boolean>(false);
   
-  // Modal State
+  // Modal States
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMemberManagerOpen, setIsMemberManagerOpen] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Derived State
   const columnWidth = useMemo(() => {
       switch(timeScale) {
           case TimeScale.Day: return 50;
-          case TimeScale.Month: return 15; // Compact for monthly view
+          case TimeScale.Month: return 15; 
           case TimeScale.Quarter: return 8;
           case TimeScale.HalfYear: return 4;
           case TimeScale.Year: return 2;
@@ -71,23 +82,22 @@ const App: React.FC = () => {
     if (saved) {
       try {
         const parsed: ProjectData = JSON.parse(saved);
-        const restoredTasks = parsed.tasks.map(t => ({
+        setTasks(parsed.tasks.map(t => ({
           ...t,
           start: new Date(t.start),
           end: new Date(t.end)
-        }));
-        setTasks(restoredTasks);
+        })));
         setDependencies(parsed.dependencies);
+        if(parsed.members) setMembers(parsed.members);
       } catch (e) { console.error("Failed load", e); }
     }
   }, []);
 
   const saveProject = () => {
-    const data: ProjectData = { tasks, dependencies };
+    const data: ProjectData = { tasks, dependencies, members };
     const json = JSON.stringify(data, null, 2);
     localStorage.setItem(STORAGE_KEY, json);
     
-    // Download File
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -105,7 +115,8 @@ const App: React.FC = () => {
               const parsed: ProjectData = JSON.parse(ev.target?.result as string);
               setTasks(parsed.tasks.map(t => ({ ...t, start: new Date(t.start), end: new Date(t.end) })));
               setDependencies(parsed.dependencies);
-              // Center view on project start
+              if(parsed.members) setMembers(parsed.members);
+              
               if (parsed.tasks.length > 0) {
                 const minDate = new Date(Math.min(...parsed.tasks.map(t => new Date(t.start).getTime())));
                 setViewStartDate(minDate);
@@ -115,14 +126,7 @@ const App: React.FC = () => {
       reader.readAsText(file);
   };
 
-  const clearProject = () => {
-      if(confirm('Reset to default?')) {
-          setTasks(INITIAL_TASKS);
-          setDependencies(INITIAL_DEPENDENCIES);
-      }
-  }
-
-  // Navigation Logic
+  // Handlers
   const handleStep = (direction: 'prev' | 'next') => {
       const factor = direction === 'next' ? 1 : -1;
       switch(timeScale) {
@@ -140,14 +144,12 @@ const App: React.FC = () => {
       setViewStartDate(today);
   };
 
-  // Task CRUD
   const handleTaskUpdate = (updatedTask: Task) => {
     setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
   };
 
   const handleTaskSave = (updatedTask: Task, newDeps: Dependency[]) => {
       handleTaskUpdate(updatedTask);
-      // Update deps: Remove old ones for this target, add new ones
       setDependencies(prev => {
           const others = prev.filter(d => d.targetId !== updatedTask.id);
           return [...others, ...newDeps];
@@ -167,12 +169,11 @@ const App: React.FC = () => {
     const start = new Date(viewStartDate);
     const end = addDays(start, 2);
     const newTask: Task = {
-        id: newId, name: 'New Task', start, end, duration: 2, progress: 0, owner: '', type: 'task'
+        id: newId, name: 'New Task', start, end, duration: 2, progress: 0, type: 'task'
     };
     setTasks([...tasks, newTask]);
   };
 
-  // Dependencies
   const handleDependencyCreate = (sourceId: string, targetId: string) => {
      if(dependencies.find(d => d.sourceId === sourceId && d.targetId === targetId)) return;
      if(sourceId === targetId) return;
@@ -182,16 +183,15 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white text-slate-900 font-sans">
+    <div className="flex flex-col h-screen bg-white text-slate-900 font-sans overflow-hidden">
       {/* Toolbar */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shadow-sm z-10">
+      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shadow-sm z-20">
         <div className="flex items-center space-x-4">
            <div className="flex items-center space-x-2 mr-4">
                 <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">P</div>
                 <h1 className="text-lg font-bold text-slate-800 hidden md:block">ProGantt</h1>
            </div>
            
-           {/* View Modes */}
            <div className="flex bg-gray-100 rounded-lg p-1">
               <button onClick={() => setViewMode(ViewMode.Table)} className={`p-1.5 rounded ${viewMode === ViewMode.Table ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}><Table size={18}/></button>
               <button onClick={() => setViewMode(ViewMode.Split)} className={`p-1.5 rounded ${viewMode === ViewMode.Split ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}><Columns size={18}/></button>
@@ -200,21 +200,23 @@ const App: React.FC = () => {
 
            <div className="h-6 w-px bg-gray-200 mx-2"></div>
            
-           <button onClick={handleAddTask} className="flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+           <button onClick={handleAddTask} className="flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 shadow-sm">
               <Plus size={16} className="mr-1" /> Task
            </button>
+           
+           <button onClick={() => setIsMemberManagerOpen(true)} className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+               <Users size={16} className="mr-2"/> Members
+           </button>
 
-           {/* Scale Dropdown */}
            <select 
              value={timeScale} 
              onChange={(e) => {
                  setTimeScale(e.target.value as TimeScale);
-                 // Adjust visible days based on scale to keep view reasonable
                  if (e.target.value === TimeScale.Year) setViewDays(365);
                  else if (e.target.value === TimeScale.Month) setViewDays(60);
                  else setViewDays(30);
              }}
-             className="text-sm border border-gray-300 rounded-md px-2 py-1.5 bg-gray-50"
+             className="text-sm border border-gray-300 rounded-md px-2 py-1.5 bg-gray-50 outline-none"
            >
                <option value={TimeScale.Day}>Day View</option>
                <option value={TimeScale.Month}>Month View</option>
@@ -224,7 +226,6 @@ const App: React.FC = () => {
            </select>
         </div>
 
-        {/* Right Controls */}
         <div className="flex items-center space-x-3">
             <div className="flex items-center bg-gray-50 rounded-md border border-gray-200 p-1 space-x-1">
                 <button onClick={() => handleStep('prev')} className="p-1 hover:bg-gray-200 rounded"><ChevronLeft size={16}/></button>
@@ -235,11 +236,11 @@ const App: React.FC = () => {
             <div className="h-6 w-px bg-gray-200 mx-2"></div>
 
             <input type="file" ref={fileInputRef} onChange={openProject} accept=".json" className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full" title="Open File">
+            <button onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" title="Open File">
                 <FolderOpen size={20} />
             </button>
 
-            <button onClick={saveProject} className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full" title="Save & Download">
+            <button onClick={saveProject} className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" title="Save & Download">
                 <Save size={20} />
             </button>
         </div>
@@ -247,9 +248,10 @@ const App: React.FC = () => {
 
       <div className="flex-1 flex overflow-hidden relative">
         {(viewMode === ViewMode.Table || viewMode === ViewMode.Split) && (
-           <div className={`${viewMode === ViewMode.Table ? 'w-full' : 'w-1/3 min-w-[350px]'} flex flex-col z-10 shadow-lg bg-white`}>
+           <div className={`${viewMode === ViewMode.Table ? 'w-full' : 'w-1/3'} flex flex-col z-10 shadow-xl bg-white border-r border-gray-200 transition-all duration-300 ease-in-out`}>
               <TaskList 
-                tasks={tasks} 
+                tasks={tasks}
+                members={members} 
                 onTaskUpdate={handleTaskUpdate} 
                 onTaskClick={(t) => { setSelectedTask(t); setIsModalOpen(true); }}
               />
@@ -258,16 +260,14 @@ const App: React.FC = () => {
 
         {(viewMode === ViewMode.Gantt || viewMode === ViewMode.Split) && (
            <div className="flex-1 flex flex-col min-w-0 bg-white relative">
-              {/* Dynamic Header */}
-              <div className="flex border-b border-gray-200 bg-gray-50 sticky top-0 z-20 h-[50px] overflow-hidden">
+              {/* Dynamic Gantt Header */}
+              <div className="flex border-b border-gray-200 bg-gray-50 sticky top-0 z-10 h-[50px] overflow-hidden select-none shadow-sm">
                    <div className="relative h-full" style={{ width: headerDates.length * columnWidth }}>
                         {headerDates.map((date, i) => {
-                            const isYearStart = date.getMonth() === 0 && date.getDate() === 1;
                             const isMonthStart = date.getDate() === 1;
                             const isWeekStart = date.getDay() === 1;
                             const isToday = diffDays(date, new Date()) === 0;
 
-                            // Render logic depends on scale
                             let showLabel = false;
                             let labelText = "";
                             let subText = "";
@@ -290,17 +290,17 @@ const App: React.FC = () => {
                                     className={`absolute h-full border-r border-gray-200 flex flex-col justify-end items-center pb-1 text-xs text-gray-500 ${date.getDay() === 0 || date.getDay() === 6 ? 'bg-gray-100/50' : ''}`}
                                     style={{ left: i * columnWidth, width: columnWidth }}
                                 >
-                                    {/* Top Level Month/Year Label */}
+                                    {/* Month Label */}
                                     {(isMonthStart || (i===0 && timeScale === TimeScale.Day)) && (
-                                        <div className="absolute top-1 left-1 font-bold text-slate-700 whitespace-nowrap z-10 bg-gray-50 px-1 rounded">
-                                            {date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                        <div className="absolute top-1 left-1 font-bold text-slate-700 whitespace-nowrap z-10 bg-gray-50 px-1 rounded border border-gray-200 shadow-sm text-[10px]">
+                                            {date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                                         </div>
                                     )}
 
                                     {showLabel && columnWidth > 10 && (
                                         <>
                                             <span className={isToday ? 'font-bold text-blue-600' : ''}>{labelText}</span>
-                                            {columnWidth > 30 && <span className="text-[10px] opacity-60">{subText}</span>}
+                                            {columnWidth > 30 && <span className="text-[9px] opacity-60 uppercase">{subText}</span>}
                                         </>
                                     )}
                                 </div>
@@ -326,11 +326,12 @@ const App: React.FC = () => {
         )}
       </div>
 
-      {/* Task Modal */}
+      {/* Modals */}
       {selectedTask && (
           <TaskModal 
             task={selectedTask}
             allTasks={tasks}
+            members={members}
             dependencies={dependencies}
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)}
@@ -338,6 +339,13 @@ const App: React.FC = () => {
             onDelete={handleTaskDelete}
           />
       )}
+
+      <MemberManager 
+          isOpen={isMemberManagerOpen}
+          onClose={() => setIsMemberManagerOpen(false)}
+          members={members}
+          onUpdateMembers={setMembers}
+      />
     </div>
   );
 };

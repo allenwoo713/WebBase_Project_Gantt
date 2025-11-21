@@ -1,14 +1,16 @@
+
 import React from 'react';
-import { Task, ROW_HEIGHT } from '../types';
-import { Calendar, User, CheckCircle2 } from 'lucide-react';
+import { Task, ROW_HEIGHT, Member } from '../types';
+import { Calendar, User, CheckCircle2, Users, Target, Clock } from 'lucide-react';
 
 interface TaskListProps {
   tasks: Task[];
+  members: Member[];
   onTaskUpdate: (task: Task) => void;
   onTaskClick?: (task: Task) => void;
 }
 
-const TaskList: React.FC<TaskListProps> = ({ tasks, onTaskUpdate, onTaskClick }) => {
+const TaskList: React.FC<TaskListProps> = ({ tasks, members, onTaskUpdate, onTaskClick }) => {
   
   const handleChange = (id: string, field: keyof Task, value: any) => {
     const task = tasks.find(t => t.id === id);
@@ -17,71 +19,189 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onTaskUpdate, onTaskClick })
     }
   };
 
+  const getMemberName = (id?: string) => members.find(m => m.id === id)?.name || 'Unassigned';
+  const getMemberColor = (id?: string) => members.find(m => m.id === id)?.color || '#cbd5e1';
+
   return (
-    <div className="flex flex-col h-full border-r border-gray-200 bg-white select-none">
-      {/* Header */}
-      <div className="flex items-center bg-gray-50 border-b border-gray-200 font-semibold text-xs text-gray-500 h-[50px]">
-        <div className="w-10 flex justify-center">#</div>
-        <div className="flex-1 px-2 border-l border-gray-100">Task Name</div>
-        <div className="w-20 px-2 border-l border-gray-100 hidden md:block">Role</div>
-        <div className="w-24 px-2 border-l border-gray-100 hidden md:block">Owner</div>
-        <div className="w-24 px-2 border-l border-gray-100 hidden lg:block">Start</div>
-        <div className="w-16 px-2 border-l border-gray-100 hidden xl:block">%</div>
-      </div>
-
-      {/* Rows */}
-      <div className="overflow-auto flex-1">
-        {tasks.map((task, index) => (
-          <div 
-            key={task.id} 
-            className="flex items-center border-b border-gray-100 hover:bg-blue-50 transition-colors cursor-pointer"
-            style={{ height: ROW_HEIGHT }}
-            onDoubleClick={() => onTaskClick && onTaskClick(task)}
-          >
-            <div className="w-10 flex justify-center text-gray-400 text-xs">{index + 1}</div>
+    <div className="flex flex-col h-full border-r border-gray-200 bg-white select-none w-full overflow-hidden">
+      {/* Header - Scrollable Container */}
+      <div className="flex-1 overflow-auto">
+        <div className="min-w-[1200px]"> {/* Ensure minimum width for horizontal scroll */}
             
-            {/* Name Input */}
-            <div className="flex-1 px-2 border-l border-transparent">
-               <input 
-                 type="text" 
-                 value={task.name}
-                 onChange={(e) => handleChange(task.id, 'name', e.target.value)}
-                 className="w-full bg-transparent text-sm text-gray-800 focus:outline-none focus:border-b focus:border-blue-500"
-               />
+            {/* Header Row */}
+            <div className="flex items-center bg-gray-50 border-b border-gray-200 font-semibold text-xs text-gray-500 sticky top-0 z-10" style={{ height: 50 }}>
+                <div className="w-10 flex justify-center shrink-0">#</div>
+                <div className="w-64 px-2 border-l border-gray-100 shrink-0">Task Name</div>
+                <div className="w-24 px-2 border-l border-gray-100 shrink-0">Role</div>
+                <div className="w-40 px-2 border-l border-gray-100 shrink-0">Owner (Effort)</div>
+                <div className="w-48 px-2 border-l border-gray-100 shrink-0">Team (Effort)</div>
+                <div className="w-32 px-2 border-l border-gray-100 shrink-0">Deliverable</div>
+                <div className="w-24 px-2 border-l border-gray-100 shrink-0">Base Score</div>
+                <div className="w-24 px-2 border-l border-gray-100 shrink-0">Score</div>
+                <div className="w-28 px-2 border-l border-gray-100 shrink-0">Start</div>
+                <div className="w-28 px-2 border-l border-gray-100 shrink-0">End</div>
+                <div className="w-16 px-2 border-l border-gray-100 shrink-0">Days</div>
+                <div className="w-16 px-2 border-l border-gray-100 shrink-0">%</div>
             </div>
 
-            {/* Role */}
-            <div className="w-20 px-2 border-l border-gray-100 hidden md:block text-xs text-gray-600 truncate">
-                {task.role || '-'}
-            </div>
+            {/* Rows */}
+            <div>
+                {tasks.map((task, index) => (
+                <div 
+                    key={task.id} 
+                    className="flex items-center border-b border-gray-100 hover:bg-blue-50 transition-colors cursor-pointer bg-white"
+                    style={{ height: ROW_HEIGHT }}
+                    onDoubleClick={() => onTaskClick && onTaskClick(task)}
+                >
+                    <div className="w-10 flex justify-center text-gray-400 text-xs shrink-0">{index + 1}</div>
+                    
+                    {/* Name */}
+                    <div className="w-64 px-2 border-l border-transparent shrink-0">
+                        <input 
+                            type="text" 
+                            value={task.name}
+                            onChange={(e) => handleChange(task.id, 'name', e.target.value)}
+                            className="w-full bg-transparent text-sm text-gray-800 focus:outline-none focus:border-b focus:border-blue-500 truncate"
+                        />
+                    </div>
 
-            {/* Owner */}
-            <div className="w-24 px-2 border-l border-gray-100 hidden md:flex items-center text-xs text-gray-600">
-                <User size={12} className="mr-1 opacity-50"/>
-                <span className="truncate">{task.owner || 'Unassigned'}</span>
-            </div>
+                    {/* Role */}
+                    <div className="w-24 px-2 border-l border-gray-100 shrink-0">
+                        <input 
+                            type="text" 
+                            value={task.role || ''} 
+                            onChange={(e) => handleChange(task.id, 'role', e.target.value)}
+                            className="w-full bg-transparent text-xs text-gray-600 focus:outline-none focus:border-b focus:border-blue-500 truncate placeholder-gray-300"
+                            placeholder="-"
+                        />
+                    </div>
 
-            {/* Start Date */}
-            <div className="w-24 px-2 border-l border-gray-100 hidden lg:flex items-center text-xs text-gray-500">
-                <Calendar size={12} className="mr-1 opacity-50" />
-                {task.start.toLocaleDateString()}
-            </div>
+                    {/* Owner */}
+                    <div className="w-40 px-2 border-l border-gray-100 shrink-0 flex items-center text-xs text-gray-600">
+                        <select
+                            value={task.ownerId || ''}
+                            onChange={(e) => handleChange(task.id, 'ownerId', e.target.value)}
+                            className="bg-transparent outline-none w-full cursor-pointer truncate appearance-none"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <option value="">Unassigned</option>
+                            {members.map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                        </select>
+                        {task.ownerId && (
+                            <span className="ml-1 text-[10px] bg-blue-100 text-blue-700 px-1 rounded">
+                                {task.ownerEffort || 100}%
+                            </span>
+                        )}
+                    </div>
 
-            {/* Progress */}
-            <div className="w-16 px-2 border-l border-gray-100 hidden xl:block text-xs text-center">
-                <span className={`px-2 py-0.5 rounded-full ${task.progress === 100 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {task.progress}%
-                </span>
+                    {/* Team (Members) */}
+                    <div className="w-48 px-2 border-l border-gray-100 shrink-0 flex items-center gap-1 overflow-hidden">
+                        {task.assignments && task.assignments.length > 0 ? (
+                            task.assignments.map((assign, i) => {
+                                const m = members.find(mem => mem.id === assign.memberId);
+                                if (!m) return null;
+                                return (
+                                    <div key={i} className="flex items-center bg-gray-100 rounded px-1.5 py-0.5 whitespace-nowrap" title={`${m.name} (${assign.effort}%)`}>
+                                        <div className="w-2 h-2 rounded-full mr-1" style={{ background: m.color }}></div>
+                                        <span className="text-[10px] text-gray-700 max-w-[60px] truncate">{m.name}</span>
+                                        <span className="text-[9px] text-gray-400 ml-1">{assign.effort}%</span>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <span className="text-xs text-gray-300 italic pl-1">No members</span>
+                        )}
+                    </div>
+
+                    {/* Deliverable */}
+                    <div className="w-32 px-2 border-l border-gray-100 shrink-0">
+                         <input 
+                            type="text" 
+                            value={task.deliverable || ''}
+                            onChange={(e) => handleChange(task.id, 'deliverable', e.target.value)}
+                            className="w-full bg-transparent text-xs text-gray-600 focus:outline-none focus:border-b focus:border-blue-500 truncate placeholder-gray-300"
+                            placeholder="-"
+                        />
+                    </div>
+
+                    {/* Baseline */}
+                    <div className="w-24 px-2 border-l border-gray-100 shrink-0 text-center">
+                         <input 
+                            type="text" 
+                            value={task.baselineScore || ''}
+                            onChange={(e) => handleChange(task.id, 'baselineScore', e.target.value)}
+                            className="w-full bg-transparent text-xs text-center text-gray-600 focus:outline-none focus:border-b focus:border-blue-500 placeholder-gray-300"
+                            placeholder="-"
+                        />
+                    </div>
+
+                    {/* Score */}
+                    <div className="w-24 px-2 border-l border-gray-100 shrink-0 text-center">
+                         <input 
+                            type="text" 
+                            value={task.score || ''}
+                            onChange={(e) => handleChange(task.id, 'score', e.target.value)}
+                            className="w-full bg-transparent text-xs text-center text-gray-600 focus:outline-none focus:border-b focus:border-blue-500 placeholder-gray-300"
+                            placeholder="-"
+                        />
+                    </div>
+
+                    {/* Start */}
+                    <div className="w-28 px-2 border-l border-gray-100 shrink-0 flex items-center text-xs text-gray-500">
+                         <input 
+                            type="date" 
+                            value={task.start.toISOString().split('T')[0]}
+                            onChange={(e) => {
+                                if(e.target.value) {
+                                    const newStart = new Date(e.target.value);
+                                    const duration = (task.end.getTime() - task.start.getTime());
+                                    const newEnd = new Date(newStart.getTime() + duration);
+                                    onTaskUpdate({...task, start: newStart, end: newEnd});
+                                }
+                            }}
+                            className="w-full bg-transparent focus:outline-none text-[11px]"
+                        />
+                    </div>
+
+                    {/* End */}
+                    <div className="w-28 px-2 border-l border-gray-100 shrink-0 flex items-center text-xs text-gray-500">
+                         <input 
+                            type="date" 
+                            value={task.end.toISOString().split('T')[0]}
+                            onChange={(e) => {
+                                if(e.target.value) {
+                                    const newEnd = new Date(e.target.value);
+                                    onTaskUpdate({...task, end: newEnd});
+                                }
+                            }}
+                            className="w-full bg-transparent focus:outline-none text-[11px]"
+                        />
+                    </div>
+
+                     {/* Duration */}
+                     <div className="w-16 px-2 border-l border-gray-100 shrink-0 text-center text-xs text-gray-600">
+                        {task.duration} d
+                    </div>
+
+                    {/* Progress */}
+                    <div className="w-16 px-2 border-l border-gray-100 shrink-0 text-center">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${task.progress === 100 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                            {task.progress}%
+                        </span>
+                    </div>
+                </div>
+                ))}
+                
+                {/* Empty Filler */}
+                {tasks.length < 15 && Array.from({ length: 15 - tasks.length }).map((_, i) => (
+                    <div key={`empty-${i}`} className="min-w-[1200px] flex items-center border-b border-gray-50" style={{ height: ROW_HEIGHT }}>
+                        <div className="w-full bg-gray-50/10 h-full"></div>
+                    </div>
+                ))}
             </div>
-          </div>
-        ))}
-        
-        {/* Empty state placeholder rows */}
-        {tasks.length < 10 && Array.from({ length: 10 - tasks.length }).map((_, i) => (
-             <div key={`empty-${i}`} className="flex items-center border-b border-gray-50" style={{ height: ROW_HEIGHT }}>
-                <div className="w-full bg-gray-50/30 h-full"></div>
-             </div>
-        ))}
+        </div>
       </div>
     </div>
   );
