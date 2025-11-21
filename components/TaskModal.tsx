@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Task, Dependency, DependencyType, Member, TaskAssignment, ProjectSettings } from '../types';
 import { X, Trash2, Link, Calendar, Users, Target, AlignLeft } from 'lucide-react';
@@ -67,24 +66,32 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
   const handleDateChange = (field: 'start' | 'end', value: string) => {
       if (!value) return;
-      const date = new Date(value);
+      
+      // Parse YYYY-MM-DD as local time components to avoid UTC shift issues
+      const [y, m, d] = value.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
       
       setEditedTask(prev => {
           if (!prev) return null;
           const updates: any = { [field]: date };
           
-          // Calculate duration dynamically
           const start = field === 'start' ? date : prev.start;
           const end = field === 'end' ? date : prev.end;
-          
-          // Ensure end >= start just in case, though we allow negatives mostly or 0
-          // But logically for gantt usually end >= start. 
-          // diffProjectDays handles direction.
           
           updates.duration = diffProjectDays(start, end, settings);
           
           return { ...prev, ...updates };
       });
+  };
+
+  const showPicker = (e: React.MouseEvent<HTMLInputElement>) => {
+      try {
+          if (e.currentTarget && typeof e.currentTarget.showPicker === 'function') {
+              e.currentTarget.showPicker();
+          }
+      } catch (err) {
+          // Fallback
+      }
   };
 
   // Dependency Logic
@@ -144,7 +151,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
   const availableMembers = members.filter(m => m.id !== editedTask.ownerId && !editedTask.assignments?.some(a => a.memberId === m.id));
 
-  const inputBaseClass = "w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all";
+  const inputBaseClass = "w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-gray-400";
+  const dateInputClass = `${inputBaseClass} [color-scheme:light] cursor-pointer`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -176,14 +184,14 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 </div>
                 <div className="w-32 shrink-0">
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Progress</label>
-                    <div className="flex items-center">
+                    <div className="flex items-center relative">
                         <input 
                             type="number" min="0" max="100"
                             value={editedTask.progress}
                             onChange={e => handleChange('progress', parseInt(e.target.value))}
                             className={`${inputBaseClass} text-right pr-8`}
                         />
-                        <span className="absolute ml-20 text-gray-500 pointer-events-none">%</span>
+                        <span className="absolute right-3 text-gray-500 pointer-events-none">%</span>
                     </div>
                 </div>
              </div>
@@ -257,7 +265,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                             type="number" min="0" max="100" 
                             value={editedTask.ownerEffort} 
                             onChange={e => handleChange('ownerEffort', parseInt(e.target.value))}
-                            className="w-full p-1.5 border border-gray-300 rounded-md text-center text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                            className="w-full p-1.5 border border-gray-300 rounded-md text-center text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                     </div>
                  </div>
@@ -285,7 +293,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                                             type="number" min="0" max="100"
                                             value={assign.effort}
                                             onChange={e => updateAssignmentEffort(assign.memberId, parseInt(e.target.value))}
-                                            className="w-16 p-1 border border-gray-300 rounded text-center text-sm bg-white focus:border-blue-500 outline-none"
+                                            className="w-16 p-1 border border-gray-300 rounded text-center text-sm bg-white text-gray-900 focus:border-blue-500 outline-none"
                                         />
                                         <span className="text-xs text-gray-500 ml-1">%</span>
                                      </div>
@@ -302,7 +310,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                          <select 
                             value={newMemberId}
                             onChange={e => setNewMemberId(e.target.value)}
-                            className="flex-1 p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                            className="flex-1 p-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                          >
                              <option value="">+ Add team member...</option>
                              {availableMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -332,11 +340,23 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 <div className="space-y-3">
                     <div>
                         <label className="text-xs font-semibold text-gray-500 mb-1 block">Start Date</label>
-                        <input type="date" value={formatDate(editedTask.start)} onChange={e => handleDateChange('start', e.target.value)} className={inputBaseClass} />
+                        <input 
+                            type="date" 
+                            value={formatDate(editedTask.start)} 
+                            onChange={e => handleDateChange('start', e.target.value)} 
+                            onClick={showPicker}
+                            className={dateInputClass} 
+                        />
                     </div>
                     <div>
                         <label className="text-xs font-semibold text-gray-500 mb-1 block">End Date</label>
-                        <input type="date" value={formatDate(editedTask.end)} onChange={e => handleDateChange('end', e.target.value)} className={inputBaseClass} />
+                        <input 
+                            type="date" 
+                            value={formatDate(editedTask.end)} 
+                            onChange={e => handleDateChange('end', e.target.value)} 
+                            onClick={showPicker}
+                            className={dateInputClass} 
+                        />
                     </div>
                     <div className="pt-1 text-sm text-gray-600 bg-blue-50 p-2 rounded border border-blue-100">
                         Duration: <span className="font-bold text-blue-800">{editedTask.duration} days</span>
@@ -388,7 +408,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 
                 <div className="flex space-x-2 mt-3">
                     <select 
-                        className="flex-1 p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="flex-1 p-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                         value={newDepTargetId}
                         onChange={e => setNewDepTargetId(e.target.value)}
                     >

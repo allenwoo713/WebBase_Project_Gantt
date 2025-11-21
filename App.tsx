@@ -84,24 +84,25 @@ const App: React.FC = () => {
     if (saved) {
       try {
         const parsed: ProjectData = JSON.parse(saved);
-        setTasks(parsed.tasks.map(t => ({ ...t, start: new Date(t.start), end: new Date(t.end) })));
-        setDependencies(parsed.dependencies);
-        if(parsed.members) setMembers(parsed.members);
+        setTasks((parsed.tasks || []).map(t => ({ ...t, start: new Date(t.start), end: new Date(t.end) })));
+        setDependencies(parsed.dependencies || []);
+        setMembers(parsed.members || []);
         
-        // Migration for Holidays (String[] -> Holiday[])
-        let loadedSettings = parsed.settings || INITIAL_SETTINGS;
-        if (loadedSettings.holidays && loadedSettings.holidays.length > 0) {
-            // Check if it is old string format
-            if (typeof loadedSettings.holidays[0] === 'string') {
-                 const oldHolidays = loadedSettings.holidays as unknown as string[];
-                 const newHolidays: Holiday[] = oldHolidays.map((hStr, idx) => ({
-                     id: `migrated-${idx}`,
-                     name: 'Holiday',
-                     start: hStr,
-                     end: hStr
-                 }));
-                 loadedSettings = { ...loadedSettings, holidays: newHolidays };
-            }
+        // Safe merge for settings
+        let loadedSettings = { ...INITIAL_SETTINGS, ...(parsed.settings || {}) };
+        if(!Array.isArray(loadedSettings.holidays)) loadedSettings.holidays = [];
+        if(!Array.isArray(loadedSettings.makeUpDays)) loadedSettings.makeUpDays = [];
+
+        // Migration logic
+        if (loadedSettings.holidays.length > 0 && typeof loadedSettings.holidays[0] === 'string') {
+             const oldHolidays = loadedSettings.holidays as unknown as string[];
+             const newHolidays: Holiday[] = oldHolidays.map((hStr, idx) => ({
+                 id: `migrated-${idx}`,
+                 name: 'Holiday',
+                 start: hStr,
+                 end: hStr
+             }));
+             loadedSettings.holidays = newHolidays;
         }
         setSettings(loadedSettings);
 
@@ -131,27 +132,27 @@ const App: React.FC = () => {
       reader.onload = (ev) => {
           try {
               const parsed: ProjectData = JSON.parse(ev.target?.result as string);
-              setTasks(parsed.tasks.map(t => ({ ...t, start: new Date(t.start), end: new Date(t.end) })));
-              setDependencies(parsed.dependencies);
-              if(parsed.members) setMembers(parsed.members);
+              setTasks((parsed.tasks || []).map(t => ({ ...t, start: new Date(t.start), end: new Date(t.end) })));
+              setDependencies(parsed.dependencies || []);
+              setMembers(parsed.members || []);
               
-              // Migration on Open
-              let loadedSettings = parsed.settings || INITIAL_SETTINGS;
-              if (loadedSettings.holidays && loadedSettings.holidays.length > 0) {
-                    if (typeof loadedSettings.holidays[0] === 'string') {
-                        const oldHolidays = loadedSettings.holidays as unknown as string[];
-                        const newHolidays: Holiday[] = oldHolidays.map((hStr, idx) => ({
-                            id: `migrated-${idx}`,
-                            name: 'Holiday',
-                            start: hStr,
-                            end: hStr
-                        }));
-                        loadedSettings = { ...loadedSettings, holidays: newHolidays };
-                    }
+              let loadedSettings = { ...INITIAL_SETTINGS, ...(parsed.settings || {}) };
+              if(!Array.isArray(loadedSettings.holidays)) loadedSettings.holidays = [];
+              if(!Array.isArray(loadedSettings.makeUpDays)) loadedSettings.makeUpDays = [];
+
+              if (loadedSettings.holidays.length > 0 && typeof loadedSettings.holidays[0] === 'string') {
+                    const oldHolidays = loadedSettings.holidays as unknown as string[];
+                    const newHolidays: Holiday[] = oldHolidays.map((hStr, idx) => ({
+                        id: `migrated-${idx}`,
+                        name: 'Holiday',
+                        start: hStr,
+                        end: hStr
+                    }));
+                    loadedSettings.holidays = newHolidays;
               }
               setSettings(loadedSettings);
               
-              if (parsed.tasks.length > 0) {
+              if (parsed.tasks && parsed.tasks.length > 0) {
                 const minDate = new Date(Math.min(...parsed.tasks.map(t => new Date(t.start).getTime())));
                 setViewStartDate(minDate);
               }
@@ -177,11 +178,10 @@ const App: React.FC = () => {
       setViewStartDate(today);
   };
 
-  // RECALCULATE DURATION FOR ALL TASKS ON SETTINGS CHANGE
+  // IMPORTANT: Recalculate duration for ALL tasks when settings change (e.g. working days/holidays)
   const handleSettingsSave = (newSettings: ProjectSettings) => {
       setSettings(newSettings);
       setTasks(prevTasks => prevTasks.map(t => {
-          // Re-run the calculation logic with the NEW settings
           const duration = diffProjectDays(t.start, t.end, newSettings);
           return { ...t, duration };
       }));

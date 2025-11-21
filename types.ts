@@ -79,7 +79,7 @@ export enum ViewMode {
     holidays: Holiday[]; 
     makeUpDays: string[]; // YYYY-MM-DD - Days that are working days even if they are weekends
     projectFilename?: string;
-    projectSavePath?: string; // Metadata for save path
+    projectSavePath?: string;
   }
   
   export interface ProjectData {

@@ -22,6 +22,7 @@ export const addYears = (date: Date, years: number): Date => {
 
 export const formatDate = (date: Date): string => {
   if (!date || isNaN(date.getTime())) return '';
+  // CRITICAL: Use Local Time methods to prevent timezone offsets (e.g. previous day bugs)
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -56,11 +57,11 @@ export const isDateInRange = (date: Date, startStr: string, endStr: string) => {
 };
 
 export const getHolidayForDate = (date: Date, holidays: Holiday[]): Holiday | undefined => {
-    return holidays.find(h => isDateInRange(date, h.start, h.end));
+    return (holidays || []).find(h => isDateInRange(date, h.start, h.end));
 };
 
 export const isMakeUpDay = (date: Date, makeUpDays: string[] = []) => {
-    return makeUpDays.includes(formatDate(date));
+    return (makeUpDays || []).includes(formatDate(date));
 };
 
 export const isWorkingDay = (date: Date, settings: ProjectSettings) => {
@@ -90,7 +91,7 @@ export const isWorkingDay = (date: Date, settings: ProjectSettings) => {
  */
 export const diffProjectDays = (start: Date, end: Date, settings: ProjectSettings): number => {
     // Simple mode if weekends included and no holidays defined
-    if (settings.includeWeekends && settings.holidays.length === 0 && (!settings.makeUpDays || settings.makeUpDays.length === 0)) {
+    if (settings.includeWeekends && (!settings.holidays || settings.holidays.length === 0) && (!settings.makeUpDays || settings.makeUpDays.length === 0)) {
         return diffDays(end, start);
     }
 
@@ -102,7 +103,9 @@ export const diffProjectDays = (start: Date, end: Date, settings: ProjectSetting
 
     const direction = target >= current ? 1 : -1;
 
-    while (current.getTime() !== target.getTime()) {
+    let safety = 0;
+    // Use inequality check to prevent infinite loops on DST transitions
+    while (safety < 5000 && ((direction === 1 && current < target) || (direction === -1 && current > target))) {
         if (direction === 1) {
              if (isWorkingDay(current, settings)) count++;
              current = addDays(current, 1);
@@ -110,6 +113,7 @@ export const diffProjectDays = (start: Date, end: Date, settings: ProjectSetting
              current = addDays(current, -1);
              if (isWorkingDay(current, settings)) count--;
         }
+        safety++;
     }
     return count;
 };
@@ -118,7 +122,7 @@ export const diffProjectDays = (start: Date, end: Date, settings: ProjectSetting
  * Adds N "Project Days" to a date.
  */
 export const addProjectDays = (start: Date, duration: number, settings: ProjectSettings): Date => {
-    if (settings.includeWeekends && settings.holidays.length === 0 && (!settings.makeUpDays || settings.makeUpDays.length === 0)) {
+    if (settings.includeWeekends && (!settings.holidays || settings.holidays.length === 0) && (!settings.makeUpDays || settings.makeUpDays.length === 0)) {
         return addDays(start, duration);
     }
 
@@ -128,11 +132,13 @@ export const addProjectDays = (start: Date, duration: number, settings: ProjectS
     const direction = duration >= 0 ? 1 : -1;
     const absDuration = Math.abs(duration);
 
-    while (daysAdded < absDuration) {
+    let safety = 0;
+    while (daysAdded < absDuration && safety < 5000) {
         current = addDays(current, direction);
         if (isWorkingDay(current, settings)) {
             daysAdded++;
         }
+        safety++;
     }
     return current;
 };

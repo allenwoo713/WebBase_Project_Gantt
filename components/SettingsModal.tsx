@@ -22,6 +22,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
 
   if (!isOpen) return null;
 
+  const showPicker = (e: React.MouseEvent<HTMLInputElement>) => {
+    try {
+        if (e.currentTarget && typeof e.currentTarget.showPicker === 'function') {
+            e.currentTarget.showPicker();
+        }
+    } catch (err) {
+        // Fallback
+    }
+  };
+
   const handleAddHoliday = () => {
       if (newHolidayName && newHolidayStart && newHolidayEnd) {
           const newHol: Holiday = {
@@ -32,7 +42,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
           };
           setLocalSettings(prev => ({
               ...prev,
-              holidays: [...prev.holidays, newHol].sort((a,b) => a.start.localeCompare(b.start))
+              holidays: [...(prev.holidays || []), newHol].sort((a,b) => a.start.localeCompare(b.start))
           }));
           setNewHolidayName('');
           setNewHolidayStart('');
@@ -43,7 +53,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
   const handleRemoveHoliday = (id: string) => {
       setLocalSettings(prev => ({
           ...prev,
-          holidays: prev.holidays.filter(h => h.id !== id)
+          holidays: (prev.holidays || []).filter(h => h.id !== id)
       }));
   };
 
@@ -68,6 +78,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
       onSave(localSettings);
       onClose();
   };
+
+  // Common classes for inputs to ensure light theme visibility and no dark backgrounds
+  const inputClass = "w-full p-2 border border-gray-300 rounded text-sm outline-none focus:border-blue-500 bg-white text-gray-900";
+  const dateInputClass = `${inputClass} [color-scheme:light] cursor-pointer`;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -98,7 +112,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                             type="text" 
                             value={localSettings.projectFilename || ''}
                             onChange={e => setLocalSettings({...localSettings, projectFilename: e.target.value})}
-                            className="w-full p-2 border border-gray-300 rounded text-sm outline-none focus:border-blue-500"
+                            className={inputClass}
                             placeholder="e.g. MyProject_v1"
                         />
                      </div>
@@ -110,7 +124,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                                 type="text" 
                                 value={localSettings.projectSavePath || ''}
                                 onChange={e => setLocalSettings({...localSettings, projectSavePath: e.target.value})}
-                                className="w-full p-2 text-sm outline-none"
+                                className="w-full p-2 text-sm outline-none bg-white text-gray-900"
                                 placeholder="e.g. C:/Users/Admin/Projects"
                             />
                         </div>
@@ -128,7 +142,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                         type="checkbox" 
                         checked={localSettings.showDependencies}
                         onChange={e => setLocalSettings({...localSettings, showDependencies: e.target.checked})}
-                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 bg-white border-gray-300"
                     />
                 </div>
                 <div className="space-y-2">
@@ -137,7 +151,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                             type="radio" name="weekendMode"
                             checked={localSettings.includeWeekends}
                             onChange={() => setLocalSettings({...localSettings, includeWeekends: true})}
-                            className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                            className="w-4 h-4 text-blue-600 focus:ring-blue-500 bg-white border-gray-300"
                         />
                         <span className="ml-3 text-sm text-gray-700"><strong>Calendar Days</strong> (Include Weekends)</span>
                     </label>
@@ -146,7 +160,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                             type="radio" name="weekendMode"
                             checked={!localSettings.includeWeekends}
                             onChange={() => setLocalSettings({...localSettings, includeWeekends: false})}
-                            className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                            className="w-4 h-4 text-blue-600 focus:ring-blue-500 bg-white border-gray-300"
                         />
                         <span className="ml-3 text-sm text-gray-700"><strong>Working Days</strong> (Exclude Sat/Sun)</span>
                     </label>
@@ -169,16 +183,28 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                             <input 
                                 type="text" placeholder="Holiday Name (e.g. National Day)"
                                 value={newHolidayName} onChange={e => setNewHolidayName(e.target.value)}
-                                className="w-full p-2 text-sm border border-gray-300 rounded outline-none"
+                                className={inputClass}
                             />
                             <div className="flex gap-2">
                                 <div className="flex-1">
                                     <label className="text-[10px] text-gray-500 uppercase">Start</label>
-                                    <input type="date" value={newHolidayStart} onChange={e => setNewHolidayStart(e.target.value)} className="w-full p-2 text-sm border border-gray-300 rounded outline-none"/>
+                                    <input 
+                                        type="date" 
+                                        value={newHolidayStart} 
+                                        onChange={e => setNewHolidayStart(e.target.value)} 
+                                        onClick={showPicker}
+                                        className={dateInputClass}
+                                    />
                                 </div>
                                 <div className="flex-1">
                                     <label className="text-[10px] text-gray-500 uppercase">End</label>
-                                    <input type="date" value={newHolidayEnd} onChange={e => setNewHolidayEnd(e.target.value)} className="w-full p-2 text-sm border border-gray-300 rounded outline-none"/>
+                                    <input 
+                                        type="date" 
+                                        value={newHolidayEnd} 
+                                        onChange={e => setNewHolidayEnd(e.target.value)} 
+                                        onClick={showPicker}
+                                        className={dateInputClass}
+                                    />
                                 </div>
                                 <div className="flex items-end">
                                     <button 
@@ -193,8 +219,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
 
                         {/* List */}
                         <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-md bg-white">
-                            {localSettings.holidays.length === 0 && <div className="p-4 text-center text-xs text-gray-400">No holidays configured</div>}
-                            {localSettings.holidays.map(h => (
+                            {(localSettings.holidays || []).length === 0 && <div className="p-4 text-center text-xs text-gray-400">No holidays configured</div>}
+                            {(localSettings.holidays || []).map(h => (
                                 <div key={h.id} className="flex items-center justify-between p-2 border-b border-gray-100 last:border-0 hover:bg-gray-50">
                                     <div>
                                         <div className="text-sm font-medium text-gray-800">{h.name}</div>
@@ -213,8 +239,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                         </h3>
                         <div className="flex gap-2">
                             <input 
-                                type="date" value={newMakeUpDay} onChange={e => setNewMakeUpDay(e.target.value)}
-                                className="flex-1 p-2 text-sm border border-gray-300 rounded outline-none"
+                                type="date" 
+                                value={newMakeUpDay} 
+                                onChange={e => setNewMakeUpDay(e.target.value)}
+                                onClick={showPicker}
+                                className={`${dateInputClass} flex-1`}
                             />
                             <button 
                                 onClick={handleAddMakeUpDay} disabled={!newMakeUpDay}
