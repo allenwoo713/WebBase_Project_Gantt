@@ -16,7 +16,17 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, members, onTaskUpdate, onTas
   const handleChange = (id: string, field: keyof Task, value: any) => {
     const task = tasks.find(t => t.id === id);
     if (task) {
-        onTaskUpdate({ ...task, [field]: value });
+        const updates: Partial<Task> = { [field]: value };
+
+        // Sync Role if Owner changes
+        if (field === 'ownerId') {
+            const member = members.find(m => m.id === value);
+            if (member) {
+                updates.role = member.role;
+            }
+        }
+
+        onTaskUpdate({ ...task, ...updates });
     }
   };
 
