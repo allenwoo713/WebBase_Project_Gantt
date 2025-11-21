@@ -1,16 +1,17 @@
-
 import React from 'react';
-import { Task, ROW_HEIGHT, Member } from '../types';
+import { Task, ROW_HEIGHT, Member, Priority } from '../types';
 import { Calendar, User, CheckCircle2, Users, Target, Clock } from 'lucide-react';
+import { formatDate } from '../utils';
 
 interface TaskListProps {
   tasks: Task[];
   members: Member[];
   onTaskUpdate: (task: Task) => void;
   onTaskClick?: (task: Task) => void;
+  onError: (msg: string) => void;
 }
 
-const TaskList: React.FC<TaskListProps> = ({ tasks, members, onTaskUpdate, onTaskClick }) => {
+const TaskList: React.FC<TaskListProps> = ({ tasks, members, onTaskUpdate, onTaskClick, onError }) => {
   
   const handleChange = (id: string, field: keyof Task, value: any) => {
     const task = tasks.find(t => t.id === id);
@@ -19,14 +20,61 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, members, onTaskUpdate, onTas
     }
   };
 
-  const getMemberName = (id?: string) => members.find(m => m.id === id)?.name || 'Unassigned';
-  const getMemberColor = (id?: string) => members.find(m => m.id === id)?.color || '#cbd5e1';
+  // Helper to handle date changes safely without UTC shifts
+  const onDateChange = (e: React.ChangeEvent<HTMLInputElement>, task: Task, field: 'start' | 'end') => {
+      if (!e.target.value) return;
+      
+      // Parse YYYY-MM-DD to Local Time (00:00:00)
+      const [y, m, d] = e.target.value.split('-').map(Number);
+      const newDate = new Date(y, m - 1, d);
+
+      if (field === 'start') {
+          // Comparison logic using getTime()
+          if (newDate.getTime() > task.end.getTime()) {
+              onError("Start date cannot be later than end date.");
+              return;
+          }
+          const duration = task.end.getTime() - task.start.getTime();
+          // Maintain duration for start change
+          const newEnd = new Date(newDate.getTime() + duration);
+          onTaskUpdate({ ...task, start: newDate, end: newEnd });
+      } else {
+          // Comparison logic using getTime()
+          if (newDate.getTime() < task.start.getTime()) {
+              onError("End date cannot be earlier than start date.");
+              return;
+          }
+          onTaskUpdate({ ...task, end: newDate });
+      }
+  };
+
+  const getPriorityColor = (p: Priority) => {
+      switch(p) {
+          case Priority.High: return 'text-orange-600 bg-orange-50';
+          case Priority.Medium: return 'text-blue-600 bg-blue-50';
+          case Priority.Low: return 'text-green-600 bg-green-50';
+          default: return 'text-gray-600';
+      }
+  };
+
+  const showPicker = (e: React.MouseEvent<HTMLInputElement>) => {
+      try {
+          if (e.currentTarget && typeof e.currentTarget.showPicker === 'function') {
+              e.currentTarget.showPicker();
+          }
+      } catch (err) {
+          // Fallback
+      }
+  };
+
+  // Common style for inputs
+  const dateInputClass = "w-full bg-transparent focus:outline-none text-[11px] cursor-pointer [color-scheme:light]";
 
   return (
     <div className="flex flex-col h-full border-r border-gray-200 bg-white select-none w-full overflow-hidden">
       {/* Header - Scrollable Container */}
       <div className="flex-1 overflow-auto">
-        <div className="min-w-[1200px]"> {/* Ensure minimum width for horizontal scroll */}
+        <div className="min-w-[1300px]"> 
             
             {/* Header Row */}
             <div className="flex items-center bg-gray-50 border-b border-gray-200 font-semibold text-xs text-gray-500 sticky top-0 z-10" style={{ height: 50 }}>
@@ -42,6 +90,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, members, onTaskUpdate, onTas
                 <div className="w-28 px-2 border-l border-gray-100 shrink-0">End</div>
                 <div className="w-16 px-2 border-l border-gray-100 shrink-0">Days</div>
                 <div className="w-16 px-2 border-l border-gray-100 shrink-0">%</div>
+                <div className="w-24 px-2 border-l border-gray-100 shrink-0">Priority</div>
             </div>
 
             {/* Rows */}
@@ -152,16 +201,10 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, members, onTaskUpdate, onTas
                     <div className="w-28 px-2 border-l border-gray-100 shrink-0 flex items-center text-xs text-gray-500">
                          <input 
                             type="date" 
-                            value={task.start.toISOString().split('T')[0]}
-                            onChange={(e) => {
-                                if(e.target.value) {
-                                    const newStart = new Date(e.target.value);
-                                    const duration = (task.end.getTime() - task.start.getTime());
-                                    const newEnd = new Date(newStart.getTime() + duration);
-                                    onTaskUpdate({...task, start: newStart, end: newEnd});
-                                }
-                            }}
-                            className="w-full bg-transparent focus:outline-none text-[11px]"
+                            value={formatDate(task.start)}
+                            onChange={(e) => onDateChange(e, task, 'start')}
+                            onClick={showPicker}
+                            className={dateInputClass}
                         />
                     </div>
 
@@ -169,14 +212,10 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, members, onTaskUpdate, onTas
                     <div className="w-28 px-2 border-l border-gray-100 shrink-0 flex items-center text-xs text-gray-500">
                          <input 
                             type="date" 
-                            value={task.end.toISOString().split('T')[0]}
-                            onChange={(e) => {
-                                if(e.target.value) {
-                                    const newEnd = new Date(e.target.value);
-                                    onTaskUpdate({...task, end: newEnd});
-                                }
-                            }}
-                            className="w-full bg-transparent focus:outline-none text-[11px]"
+                            value={formatDate(task.end)}
+                            onChange={(e) => onDateChange(e, task, 'end')}
+                            onClick={showPicker}
+                            className={dateInputClass}
                         />
                     </div>
 
@@ -191,12 +230,26 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, members, onTaskUpdate, onTas
                             {task.progress}%
                         </span>
                     </div>
+
+                    {/* Priority */}
+                    <div className="w-24 px-2 border-l border-gray-100 shrink-0 text-center">
+                        <select
+                            value={task.priority || Priority.Medium}
+                            onChange={(e) => handleChange(task.id, 'priority', e.target.value)}
+                            className={`w-full text-xs font-medium border-none outline-none bg-transparent cursor-pointer rounded px-1 py-0.5 ${getPriorityColor(task.priority || Priority.Medium)}`}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <option value={Priority.High}>High</option>
+                            <option value={Priority.Medium}>Medium</option>
+                            <option value={Priority.Low}>Low</option>
+                        </select>
+                    </div>
                 </div>
                 ))}
                 
                 {/* Empty Filler */}
                 {tasks.length < 15 && Array.from({ length: 15 - tasks.length }).map((_, i) => (
-                    <div key={`empty-${i}`} className="min-w-[1200px] flex items-center border-b border-gray-50" style={{ height: ROW_HEIGHT }}>
+                    <div key={`empty-${i}`} className="min-w-[1300px] flex items-center border-b border-gray-50" style={{ height: ROW_HEIGHT }}>
                         <div className="w-full bg-gray-50/10 h-full"></div>
                     </div>
                 ))}

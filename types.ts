@@ -18,6 +18,12 @@ export enum ViewMode {
     SF = 'SF', // Start to Finish
     SS = 'SS'  // Start to Start
   }
+
+  export enum Priority {
+    High = 'High',
+    Medium = 'Medium',
+    Low = 'Low'
+  }
   
   export interface Dependency {
     id: string;
@@ -48,6 +54,7 @@ export enum ViewMode {
     end: Date;
     duration: number; // in days
     progress: number; // 0-100
+    priority: Priority; // Added priority
     
     // Assignment
     ownerId?: string;

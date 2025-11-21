@@ -1,6 +1,5 @@
-
 import React, { useRef, useState, useMemo, useEffect } from 'react';
-import { Task, Dependency, ROW_HEIGHT, ProjectSettings } from '../types';
+import { Task, Dependency, ROW_HEIGHT, ProjectSettings, Priority } from '../types';
 import { addDays, diffDays, getDatesRange, getHolidayForDate, isMakeUpDay } from '../utils';
 import { Trash2 } from 'lucide-react';
 
@@ -54,7 +53,8 @@ const GanttChart: React.FC<GanttChartProps> = ({
   }, []);
 
   const getTaskX = (date: Date) => diffDays(date, viewStartDate) * columnWidth;
-  const getTaskWidth = (start: Date, end: Date) => Math.max(diffDays(end, start) * columnWidth, columnWidth / 4);
+  // Inclusive Width: (End - Start) + 1 Day
+  const getTaskWidth = (start: Date, end: Date) => Math.max((diffDays(end, start) + 1) * columnWidth, columnWidth / 4);
 
   const handleMouseDown = (e: React.MouseEvent, task: Task, action: 'move' | 'resize-l' | 'resize-r' | 'link') => {
     if (e.button !== 0) return;
@@ -130,6 +130,18 @@ const GanttChart: React.FC<GanttChartProps> = ({
       setSelectedDependencyId(depId);
   };
 
+  // Color Logic based on Priority & Critical Path
+  const getTaskColor = (task: Task, isCritical: boolean) => {
+      if (showCriticalPath && isCritical) return "#ef4444"; // Red for Critical Path
+      
+      switch(task.priority) {
+          case Priority.High: return "#f97316"; // Orange
+          case Priority.Medium: return "#3b82f6"; // Blue (Default)
+          case Priority.Low: return "#10b981"; // Green
+          default: return task.color || "#3b82f6";
+      }
+  };
+
   const renderGrid = () => (
     <g className="grid-lines select-none pointer-events-none">
       {dates.map((d, i) => {
@@ -140,13 +152,12 @@ const GanttChart: React.FC<GanttChartProps> = ({
          const holiday = getHolidayForDate(d, settings.holidays);
          const isMakeUp = isMakeUpDay(d, settings.makeUpDays);
          
-         // Prioritize MakeUp > Holiday > Weekend for color logic
          let bgFill = "transparent";
          
          if (isMakeUp) {
              bgFill = "rgba(220, 252, 231, 0.4)"; // Light Green for Make-up days
          } else if (holiday) {
-             bgFill = "rgba(254, 243, 199, 0.4)"; // Very subtle Warm/Grayish for Holidays (Not Red)
+             bgFill = "rgba(254, 243, 199, 0.4)"; // Very subtle Warm/Grayish for Holidays
          } else if (isWeekend && !settings.includeWeekends) {
              bgFill = "rgba(241, 245, 249, 0.6)"; // Light Gray for Weekends
          }
@@ -160,7 +171,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
                 <rect x={i * columnWidth} y={0} width={columnWidth} height={totalHeight} fill={bgFill} />
             )}
 
-            {/* Holiday Name Label (Vertical, only if wide enough) */}
+            {/* Holiday Label */}
             {holiday && !isMakeUp && columnWidth > 30 && (
                 <text 
                     x={i * columnWidth + columnWidth/2} 
@@ -216,6 +227,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
       const sourceIdx = tasks.findIndex(t => t.id === dep.sourceId);
       const targetIdx = tasks.findIndex(t => t.id === dep.targetId);
 
+      // Adjusted anchor points for inclusive width
       const x1 = getTaskX(source.end) + columnWidth; 
       const y1 = sourceIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
       const x2 = getTaskX(target.start); 
@@ -277,7 +289,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
           const y = index * ROW_HEIGHT + 6;
           const h = ROW_HEIGHT - 12;
           const isCritical = showCriticalPath && criticalTaskIds.has(task.id);
-          const barColor = isCritical ? "#ef4444" : (task.color || "#3b82f6");
+          const barColor = getTaskColor(task, isCritical);
 
           return (
             <g key={task.id} 
@@ -285,32 +297,39 @@ const GanttChart: React.FC<GanttChartProps> = ({
                onMouseLeave={() => setHoveredTask(null)}
                onDoubleClick={() => onTaskClick(task)}
             >
+                {/* Link Handle */}
                 <circle 
                     cx={x + w} cy={y + h/2} r={4} fill="#cbd5e1" 
                     className="hover:fill-blue-600 cursor-crosshair opacity-0 group-hover:opacity-100 transition-opacity"
                     onMouseDown={(e) => handleMouseDown(e, task, 'link')}
                 />
+                {/* Task Bar */}
                 <rect
                     x={x} y={y} width={w} height={h} rx={4} fill={barColor} filter="url(#shadow)"
                     className="cursor-move transition-colors"
                     onMouseDown={(e) => handleMouseDown(e, task, 'move')}
                     onMouseUp={(e) => handleMouseUp(e, task.id)}
                 />
+                {/* Progress Bar */}
                 <rect
                     x={x} y={y + h - 4} width={w * (task.progress / 100)} height={4}
                     fill="rgba(255,255,255,0.4)" rx={2} className="pointer-events-none"
                 />
+                {/* Task Label (Beside Bar) */}
                 {columnWidth > 10 && (
                     <text x={x + w + 8} y={y + h/1.5} fontSize="12" fill="#475569" className="select-none font-medium pointer-events-none">
                         {task.name}
                     </text>
                 )}
+                
+                {/* Tooltip - Moved UP and added pointer-events-none to prevent blocking drag */}
                 {hoveredTask === task.id && !draggingTask && !linkingTask && (
-                    <g transform={`translate(${x}, ${y - 30})`} className="pointer-events-none z-50">
-                        <rect width={160} height={70} rx={4} fill="white" stroke="#e2e8f0" className="shadow-lg" />
-                        <text x={10} y={20} fontSize="12" fontWeight="bold" fill="#1e293b">{task.name}</text>
-                        <text x={10} y={40} fontSize="10" fill="#64748b">Start: {task.start.toLocaleDateString()}</text>
-                        <text x={10} y={55} fontSize="10" fill="#64748b">End: {task.end.toLocaleDateString()}</text>
+                    <g transform={`translate(${x}, ${y - 60})`} className="pointer-events-none z-50">
+                        <rect width={180} height={55} rx={6} fill="rgba(30, 41, 59, 0.9)" className="shadow-xl" />
+                        <text x={10} y={20} fontSize="12" fontWeight="bold" fill="white">{task.name}</text>
+                        <text x={10} y={38} fontSize="10" fill="#cbd5e1">
+                            {task.start.toLocaleDateString()} - {task.end.toLocaleDateString()} ({task.priority})
+                        </text>
                     </g>
                 )}
             </g>

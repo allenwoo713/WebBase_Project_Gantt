@@ -87,12 +87,17 @@ export const isWorkingDay = (date: Date, settings: ProjectSettings) => {
 };
 
 /**
- * Calculates the number of days between two dates based on project settings.
+ * Calculates the number of days between two dates based on project settings (INCLUSIVE).
+ * If Start = End, and it's a working day, duration is 1.
  */
 export const diffProjectDays = (start: Date, end: Date, settings: ProjectSettings): number => {
+    const holidays = settings.holidays || [];
+    const makeUpDays = settings.makeUpDays || [];
+
     // Simple mode if weekends included and no holidays defined
-    if (settings.includeWeekends && (!settings.holidays || settings.holidays.length === 0) && (!settings.makeUpDays || settings.makeUpDays.length === 0)) {
-        return diffDays(end, start);
+    if (settings.includeWeekends && holidays.length === 0 && makeUpDays.length === 0) {
+        // Inclusive difference: diffDays gives 0 for same day, so we add 1
+        return diffDays(end, start) + 1;
     }
 
     let count = 0;
@@ -101,43 +106,51 @@ export const diffProjectDays = (start: Date, end: Date, settings: ProjectSetting
     const target = new Date(end);
     target.setHours(0,0,0,0);
 
-    const direction = target >= current ? 1 : -1;
+    // If end is before start, return 0 (or handle as error)
+    if (target < current) return 0;
 
-    let safety = 0;
-    // Use inequality check to prevent infinite loops on DST transitions
-    while (safety < 5000 && ((direction === 1 && current < target) || (direction === -1 && current > target))) {
-        if (direction === 1) {
-             if (isWorkingDay(current, settings)) count++;
-             current = addDays(current, 1);
-        } else {
-             current = addDays(current, -1);
-             if (isWorkingDay(current, settings)) count--;
+    // Inclusive Loop: iterate <= target
+    while (current <= target) {
+        if (isWorkingDay(current, settings)) {
+            count++;
         }
-        safety++;
+        current = addDays(current, 1);
     }
     return count;
 };
 
 /**
- * Adds N "Project Days" to a date.
+ * Adds N "Project Days" to a date to find the End Date (INCLUSIVE).
+ * If duration is 1, and start is a working day, returns start.
  */
 export const addProjectDays = (start: Date, duration: number, settings: ProjectSettings): Date => {
-    if (settings.includeWeekends && (!settings.holidays || settings.holidays.length === 0) && (!settings.makeUpDays || settings.makeUpDays.length === 0)) {
-        return addDays(start, duration);
+    const holidays = settings.holidays || [];
+    const makeUpDays = settings.makeUpDays || [];
+
+    if (duration <= 0) return start;
+
+    // Optimized path for simple calendar days
+    if (settings.includeWeekends && holidays.length === 0 && makeUpDays.length === 0) {
+        // Subtract 1 because the start day counts as the first day
+        return addDays(start, duration - 1);
     }
 
     let current = new Date(start);
-    let daysAdded = 0;
-    
-    const direction = duration >= 0 ? 1 : -1;
-    const absDuration = Math.abs(duration);
-
+    let daysFound = 0;
     let safety = 0;
-    while (daysAdded < absDuration && safety < 5000) {
-        current = addDays(current, direction);
+
+    // Find 'duration' number of working days. 
+    // The date where we find the last working day is the End Date.
+    while (daysFound < duration && safety < 5000) {
         if (isWorkingDay(current, settings)) {
-            daysAdded++;
+            daysFound++;
         }
+        
+        if (daysFound === duration) {
+            break;
+        }
+        
+        current = addDays(current, 1);
         safety++;
     }
     return current;
@@ -152,7 +165,7 @@ export const calculateCriticalPath = (tasks: Task[], dependencies: Dependency[])
 
   const projectEndDate = new Date(Math.max(...tasks.map(t => t.end.getTime())));
   
-  const isTight = (d1: Date, d2: Date) => Math.abs(diffDays(d1, d2)) <= 0; // Simplified for standard days
+  const isTight = (d1: Date, d2: Date) => Math.abs(diffDays(d1, d2)) <= 1; // Adjusted for inclusive logic
 
   const toVisit: string[] = tasks.filter(t => diffDays(t.end, projectEndDate) === 0).map(t => t.id);
   const visited = new Set<string>();

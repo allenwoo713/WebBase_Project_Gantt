@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Task, Dependency, ViewMode, TimeScale, DependencyType, ProjectData, Member, ProjectSettings, Holiday } from './types';
+import { Task, Dependency, ViewMode, TimeScale, DependencyType, ProjectData, Member, ProjectSettings, Holiday, Priority } from './types';
 import GanttChart from './components/GanttChart';
 import TaskList from './components/TaskList';
 import TaskModal from './components/TaskModal';
@@ -8,7 +8,7 @@ import SettingsModal from './components/SettingsModal';
 import { addDays, addMonths, addYears, getDatesRange, calculateCriticalPath, diffDays, diffProjectDays, addProjectDays } from './utils';
 import { 
     Table, Columns, BarChart3, Save, Plus, ChevronLeft, ChevronRight, FolderOpen,
-    Users, Settings as SettingsIcon
+    Users, Settings as SettingsIcon, AlertTriangle
 } from 'lucide-react';
 
 const STORAGE_KEY = 'progantt-data-v2';
@@ -22,8 +22,8 @@ const INITIAL_MEMBERS: Member[] = [
 ];
 
 const INITIAL_TASKS: Task[] = [
-  { id: '1', name: 'Project Initiation', start: new Date(2024, 5, 1), end: new Date(2024, 5, 5), duration: 4, progress: 100, ownerId: 'm1', role: 'PM', type: 'phase' },
-  { id: '2', name: 'Requirement Analysis', start: new Date(2024, 5, 6), end: new Date(2024, 5, 10), duration: 4, progress: 60, ownerId: 'm2', role: 'Analyst', type: 'task' },
+  { id: '1', name: 'Project Initiation', start: new Date(2024, 5, 1), end: new Date(2024, 5, 5), duration: 4, progress: 100, ownerId: 'm1', role: 'PM', type: 'phase', priority: Priority.High },
+  { id: '2', name: 'Requirement Analysis', start: new Date(2024, 5, 6), end: new Date(2024, 5, 10), duration: 4, progress: 60, ownerId: 'm2', role: 'Analyst', type: 'task', priority: Priority.Medium },
 ];
 
 const INITIAL_DEPENDENCIES: Dependency[] = [
@@ -51,6 +51,9 @@ const App: React.FC = () => {
   const [viewDays, setViewDays] = useState<number>(30);
   const [showCriticalPath, setShowCriticalPath] = useState<boolean>(false);
   
+  // Global Error State
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   // Modal States
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -78,6 +81,13 @@ const App: React.FC = () => {
       return calculateCriticalPath(tasks, dependencies);
   }, [tasks, dependencies, showCriticalPath]);
 
+  // Error Handler
+  const showError = (msg: string) => {
+      setErrorMessage(msg);
+      // Auto-clear after 4 seconds
+      setTimeout(() => setErrorMessage(null), 4000);
+  };
+
   // Persistence & Migration
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -88,12 +98,10 @@ const App: React.FC = () => {
         setDependencies(parsed.dependencies || []);
         setMembers(parsed.members || []);
         
-        // Safe merge for settings
         let loadedSettings = { ...INITIAL_SETTINGS, ...(parsed.settings || {}) };
         if(!Array.isArray(loadedSettings.holidays)) loadedSettings.holidays = [];
         if(!Array.isArray(loadedSettings.makeUpDays)) loadedSettings.makeUpDays = [];
 
-        // Migration logic
         if (loadedSettings.holidays.length > 0 && typeof loadedSettings.holidays[0] === 'string') {
              const oldHolidays = loadedSettings.holidays as unknown as string[];
              const newHolidays: Holiday[] = oldHolidays.map((hStr, idx) => ({
@@ -178,7 +186,6 @@ const App: React.FC = () => {
       setViewStartDate(today);
   };
 
-  // IMPORTANT: Recalculate duration for ALL tasks when settings change (e.g. working days/holidays)
   const handleSettingsSave = (newSettings: ProjectSettings) => {
       setSettings(newSettings);
       setTasks(prevTasks => prevTasks.map(t => {
@@ -224,7 +231,7 @@ const App: React.FC = () => {
     const start = new Date(viewStartDate);
     const end = addProjectDays(start, 2, settings); 
     const newTask: Task = {
-        id: newId, name: 'New Task', start, end, duration: 2, progress: 0, type: 'task'
+        id: newId, name: 'New Task', start, end, duration: 2, progress: 0, type: 'task', priority: Priority.Medium
     };
     setTasks([...tasks, newTask]);
   };
@@ -239,6 +246,17 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-white text-slate-900 font-sans overflow-hidden">
+      {/* Global Error Notification */}
+      {errorMessage && (
+          <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-[100] bg-red-600 text-white px-6 py-3 rounded-lg shadow-xl flex items-center animate-bounce">
+              <AlertTriangle size={20} className="mr-2" />
+              <span className="font-medium">{errorMessage}</span>
+              <button onClick={() => setErrorMessage(null)} className="ml-4 opacity-80 hover:opacity-100">
+                  <div className="bg-white/20 rounded-full p-1"><span className="text-xs font-bold">✕</span></div>
+              </button>
+          </div>
+      )}
+
       {/* Toolbar */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shadow-sm z-20">
         <div className="flex items-center space-x-4">
@@ -313,12 +331,33 @@ const App: React.FC = () => {
                 members={members} 
                 onTaskUpdate={handleTaskUpdate} 
                 onTaskClick={(t) => { setSelectedTask(t); setIsModalOpen(true); }}
+                onError={showError}
               />
            </div>
         )}
 
         {(viewMode === ViewMode.Gantt || viewMode === ViewMode.Split) && (
            <div className="flex-1 flex flex-col min-w-0 bg-white relative">
+              <div className="flex items-center justify-between bg-gray-50 px-4 py-2 border-b border-gray-200 text-xs text-gray-500">
+                  <div className="flex items-center gap-4">
+                      <label className="flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={showCriticalPath} 
+                            onChange={e => setShowCriticalPath(e.target.checked)}
+                            className="mr-2 rounded text-blue-600 focus:ring-blue-500"
+                          />
+                          Show Critical Path (Red)
+                      </label>
+                      <div className="h-3 w-px bg-gray-300"></div>
+                      <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded bg-orange-500"></span> High Priority
+                          <span className="w-3 h-3 rounded bg-blue-500 ml-2"></span> Medium
+                          <span className="w-3 h-3 rounded bg-green-500 ml-2"></span> Low
+                      </div>
+                  </div>
+              </div>
+
               {/* Dynamic Gantt Header */}
               <div className="flex border-b border-gray-200 bg-gray-50 sticky top-0 z-10 h-[50px] overflow-hidden select-none shadow-sm">
                    <div className="relative h-full" style={{ width: headerDates.length * columnWidth }}>
@@ -398,6 +437,7 @@ const App: React.FC = () => {
             onSave={handleTaskSave}
             onDelete={handleTaskDelete}
             settings={settings}
+            onError={showError}
           />
       )}
 

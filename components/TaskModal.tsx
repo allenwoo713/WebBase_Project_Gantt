@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Task, Dependency, DependencyType, Member, TaskAssignment, ProjectSettings } from '../types';
-import { X, Trash2, Link, Calendar, Users, Target, AlignLeft } from 'lucide-react';
+import { Task, Dependency, DependencyType, Member, TaskAssignment, ProjectSettings, Priority } from '../types';
+import { X, Trash2, Link, Calendar, Users, Target, AlignLeft, AlertCircle } from 'lucide-react';
 import { formatDate, diffProjectDays } from '../utils';
 
 interface TaskModalProps {
@@ -13,6 +13,7 @@ interface TaskModalProps {
   onSave: (task: Task, newDependencies: Dependency[]) => void;
   onDelete: (taskId: string) => void;
   settings: ProjectSettings;
+  onError: (msg: string) => void;
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({ 
@@ -24,7 +25,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
   onClose, 
   onSave, 
   onDelete,
-  settings
+  settings,
+  onError
 }) => {
   const [editedTask, setEditedTask] = useState<Task | null>(null);
   const [taskDeps, setTaskDeps] = useState<Dependency[]>([]);
@@ -36,6 +38,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
     if (task) {
       setEditedTask({ 
           ...task, 
+          priority: task.priority || Priority.Medium,
           ownerEffort: task.ownerEffort ?? 100,
           assignments: task.assignments || []
       });
@@ -67,17 +70,29 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const handleDateChange = (field: 'start' | 'end', value: string) => {
       if (!value) return;
       
-      // Parse YYYY-MM-DD as local time components to avoid UTC shift issues
+      // Parse YYYY-MM-DD as local time components
       const [y, m, d] = value.split('-').map(Number);
       const date = new Date(y, m - 1, d);
       
       setEditedTask(prev => {
           if (!prev) return null;
+          
+          let start = prev.start;
+          let end = prev.end;
+
+          if (field === 'start') {
+              start = date;
+          } else {
+              end = date;
+          }
+
+          // Validation: End cannot be before start
+          if (end.getTime() < start.getTime()) {
+              onError(field === 'start' ? "Start date cannot be later than end date." : "End date cannot be earlier than start date.");
+              return prev;
+          }
+          
           const updates: any = { [field]: date };
-          
-          const start = field === 'start' ? date : prev.start;
-          const end = field === 'end' ? date : prev.end;
-          
           updates.duration = diffProjectDays(start, end, settings);
           
           return { ...prev, ...updates };
@@ -196,7 +211,21 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 </div>
              </div>
 
-             <div className="grid grid-cols-2 gap-6">
+             <div className="grid grid-cols-3 gap-4">
+                 <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1 flex items-center">
+                        <AlertCircle size={14} className="mr-1"/> Priority
+                    </label>
+                    <select
+                        value={editedTask.priority}
+                        onChange={e => handleChange('priority', e.target.value)}
+                        className={inputBaseClass}
+                    >
+                        <option value={Priority.High}>High</option>
+                        <option value={Priority.Medium}>Medium</option>
+                        <option value={Priority.Low}>Low</option>
+                    </select>
+                 </div>
                  <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Role</label>
                     <input 
