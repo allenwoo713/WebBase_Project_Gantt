@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Task, Dependency, DependencyType, Member, TaskAssignment, ProjectSettings, Priority } from '../types';
-import { X, Trash2, Link, Calendar, Users, Target, AlignLeft, AlertCircle } from 'lucide-react';
+import { X, Trash2, Link, Calendar, Users, Target, AlignLeft, AlertCircle, Search, CheckSquare, Square, ChevronDown } from 'lucide-react';
 import { formatDate, diffProjectDays } from '../utils';
 
 interface TaskModalProps {
@@ -30,22 +30,61 @@ const TaskModal: React.FC<TaskModalProps> = ({
 }) => {
   const [editedTask, setEditedTask] = useState<Task | null>(null);
   const [taskDeps, setTaskDeps] = useState<Dependency[]>([]);
-  const [newDepTargetId, setNewDepTargetId] = useState<string>('');
+  
+  // Dependency UI State
+  const [depSearch, setDepSearch] = useState('');
+  const [selectedDepIds, setSelectedDepIds] = useState<Set<string>>(new Set());
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchWrapperRef = useRef<HTMLDivElement>(null); // Restored Ref
+  const [deleteDepConfirmId, setDeleteDepConfirmId] = useState<string | null>(null);
+  
   const [newMemberId, setNewMemberId] = useState<string>('');
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
 
+  // Filter available tasks for dependencies (exclude self and already linked)
+  const availableTasks = useMemo(() => {
+      if (!task) return [];
+      const term = depSearch.trim().toLowerCase();
+      return allTasks.filter(t => 
+          t.id !== task.id && 
+          !taskDeps.some(d => d.sourceId === t.id) &&
+          (term === '' || t.name.toLowerCase().includes(term))
+      );
+  }, [allTasks, task, taskDeps, depSearch]);
+
+  // INITIALIZATION EFFECT
   useEffect(() => {
-    if (task) {
-      setEditedTask({ 
-          ...task, 
-          priority: task.priority || Priority.Medium,
-          ownerEffort: task.ownerEffort ?? 100,
-          assignments: task.assignments || []
-      });
-      setTaskDeps(dependencies.filter(d => d.targetId === task.id));
-      setIsDeleteConfirming(false);
+    if (isOpen && task) {
+        // If we are opening a NEW task (different ID), or if editedTask is null
+        if (!editedTask || editedTask.id !== task.id) {
+            setEditedTask({ 
+                ...task, 
+                priority: task.priority || Priority.Medium,
+                ownerEffort: task.ownerEffort ?? 100,
+                assignments: task.assignments || []
+            });
+            setTaskDeps(dependencies.filter(d => d.targetId === task.id));
+            
+            // Reset UI states specifically for a new session
+            setIsDeleteConfirming(false);
+            setSelectedDepIds(new Set());
+            setDepSearch('');
+            setIsSearchFocused(false);
+            setDeleteDepConfirmId(null);
+        }
     }
-  }, [task, dependencies, isOpen]);
+  }, [task, isOpen, dependencies]); 
+
+  // Handle click outside to close search dropdown
+  useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+          if (searchWrapperRef.current && !searchWrapperRef.current.contains(event.target as Node)) {
+              setIsSearchFocused(false);
+          }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   if (!isOpen || !editedTask) return null;
 
@@ -70,7 +109,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const handleDateChange = (field: 'start' | 'end', value: string) => {
       if (!value) return;
       
-      // Parse YYYY-MM-DD as local time components
       const [y, m, d] = value.split('-').map(Number);
       const date = new Date(y, m - 1, d);
       
@@ -86,7 +124,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
               end = date;
           }
 
-          // Validation: End cannot be before start
           if (end.getTime() < start.getTime()) {
               onError(field === 'start' ? "Start date cannot be later than end date." : "End date cannot be earlier than start date.");
               return prev;
@@ -109,26 +146,47 @@ const TaskModal: React.FC<TaskModalProps> = ({
       }
   };
 
-  // Dependency Logic
-  const addDependency = () => {
-      if (!newDepTargetId) return;
-      if (taskDeps.find(d => d.sourceId === newDepTargetId)) return;
-      
-      const newDep: Dependency = {
-          id: Math.random().toString(36).substr(2, 9),
-          sourceId: newDepTargetId,
-          targetId: task.id,
-          type: DependencyType.FS
-      };
-      setTaskDeps([...taskDeps, newDep]);
-      setNewDepTargetId('');
+  // --- Dependency Logic ---
+
+  const toggleDepSelection = (id: string) => {
+      const newSet = new Set(selectedDepIds);
+      if (newSet.has(id)) {
+          newSet.delete(id);
+      } else {
+          newSet.add(id);
+      }
+      setSelectedDepIds(newSet);
+  };
+
+  const addSelectedDependencies = () => {
+      const newDeps: Dependency[] = [];
+      selectedDepIds.forEach(sourceId => {
+          if (!taskDeps.find(d => d.sourceId === sourceId)) {
+              newDeps.push({
+                  id: Math.random().toString(36).substr(2, 9),
+                  sourceId: sourceId,
+                  targetId: task.id,
+                  type: DependencyType.FS
+              });
+          }
+      });
+      setTaskDeps([...taskDeps, ...newDeps]);
+      setSelectedDepIds(new Set());
+      setDepSearch('');
+      setIsSearchFocused(false);
   };
 
   const removeDependency = (id: string) => {
       setTaskDeps(prev => prev.filter(d => d.id !== id));
+      setDeleteDepConfirmId(null);
   };
 
-  // Member Assignment Logic
+  const updateDependencyType = (id: string, type: DependencyType) => {
+      setTaskDeps(prev => prev.map(d => d.id === id ? { ...d, type } : d));
+  };
+
+  // --- Member Assignment Logic ---
+  
   const addAssignment = () => {
       if(!newMemberId) return;
       if(editedTask.assignments?.find(a => a.memberId === newMemberId)) return;
@@ -164,7 +222,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
       onClose();
   };
 
-  const availableMembers = members.filter(m => m.id !== editedTask.ownerId && !editedTask.assignments?.some(a => a.memberId === m.id));
+  const assignableMembers = members.filter(m => m.id !== editedTask.ownerId && !editedTask.assignments?.some(a => a.memberId === m.id));
 
   const inputBaseClass = "w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-gray-400";
   const dateInputClass = `${inputBaseClass} [color-scheme:light] cursor-pointer`;
@@ -342,7 +400,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                             className="flex-1 p-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                          >
                              <option value="">+ Add team member...</option>
-                             {availableMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                             {assignableMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                          </select>
                          <button 
                             onClick={addAssignment}
@@ -359,103 +417,110 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
           <hr className="border-gray-100" />
 
-          {/* Section 3: Schedule & Scores */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-             {/* Schedule */}
-             <div className="space-y-4">
-                <h3 className="text-sm font-bold text-slate-700 flex items-center uppercase tracking-wide">
-                    <Calendar size={16} className="mr-2 text-blue-600"/> Schedule
-                </h3>
-                <div className="space-y-3">
-                    <div>
-                        <label className="text-xs font-semibold text-gray-500 mb-1 block">Start Date</label>
-                        <input 
-                            type="date" 
-                            value={formatDate(editedTask.start)} 
-                            onChange={e => handleDateChange('start', e.target.value)} 
-                            onClick={showPicker}
-                            className={dateInputClass} 
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs font-semibold text-gray-500 mb-1 block">End Date</label>
-                        <input 
-                            type="date" 
-                            value={formatDate(editedTask.end)} 
-                            onChange={e => handleDateChange('end', e.target.value)} 
-                            onClick={showPicker}
-                            className={dateInputClass} 
-                        />
-                    </div>
-                    <div className="pt-1 text-sm text-gray-600 bg-blue-50 p-2 rounded border border-blue-100">
-                        Duration: <span className="font-bold text-blue-800">{editedTask.duration} days</span>
-                    </div>
-                </div>
-             </div>
-
-             {/* Scores */}
-             <div className="space-y-4">
-                <h3 className="text-sm font-bold text-slate-700 flex items-center uppercase tracking-wide">
-                    <Target size={16} className="mr-2 text-blue-600"/> Metrics
-                </h3>
-                 <div className="space-y-3">
-                    <div>
-                        <label className="text-xs font-semibold text-gray-500 mb-1 block">Baseline Score</label>
-                        <input type="text" value={editedTask.baselineScore || ''} onChange={e => handleChange('baselineScore', e.target.value)} className={inputBaseClass} placeholder="-" />
-                    </div>
-                    <div>
-                        <label className="text-xs font-semibold text-gray-500 mb-1 block">Actual Score</label>
-                        <input type="text" value={editedTask.score || ''} onChange={e => handleChange('score', e.target.value)} className={inputBaseClass} placeholder="-" />
-                    </div>
-                </div>
-             </div>
-          </div>
-
-          <hr className="border-gray-100" />
-
           {/* Section 4: Dependencies */}
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-slate-700 flex items-center uppercase tracking-wide">
                 <Link size={16} className="mr-2 text-blue-600"/> Predecessors
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-3">
+                
+                {/* Dependency List */}
                 {taskDeps.length === 0 && <p className="text-sm text-gray-400 italic">No dependencies linked.</p>}
                 {taskDeps.map(dep => {
                     const source = allTasks.find(t => t.id === dep.sourceId);
                     return (
                         <div key={dep.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200 text-sm hover:bg-gray-100 transition-colors">
-                            <span className="flex items-center font-medium text-gray-700">
+                            <span className="flex items-center font-medium text-gray-700 flex-1">
                                 <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
                                 {source?.name || 'Unknown Task'}
                             </span>
-                            <button onClick={() => removeDependency(dep.id)} className="text-gray-400 hover:text-red-500 p-1.5 rounded hover:bg-red-50 transition-colors">
-                                <Trash2 size={14} />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <select
+                                    value={dep.type}
+                                    onChange={e => updateDependencyType(dep.id, e.target.value as DependencyType)}
+                                    className="bg-white border border-gray-300 text-xs rounded px-1 py-0.5 outline-none cursor-pointer text-gray-700 font-medium"
+                                >
+                                    <option value={DependencyType.FS}>FS</option>
+                                    <option value={DependencyType.SS}>SS</option>
+                                    <option value={DependencyType.FF}>FF</option>
+                                    <option value={DependencyType.SF}>SF</option>
+                                </select>
+                                {deleteDepConfirmId === dep.id ? (
+                                    <div className="flex items-center gap-1">
+                                        <button 
+                                            onClick={() => removeDependency(dep.id)}
+                                            className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 shadow-sm"
+                                        >
+                                            Sure?
+                                        </button>
+                                        <button 
+                                            onClick={() => setDeleteDepConfirmId(null)}
+                                            className="text-gray-400 hover:bg-gray-200 p-1 rounded"
+                                        >
+                                            <X size={12}/>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button 
+                                        onClick={() => setDeleteDepConfirmId(dep.id)}
+                                        className="text-gray-400 hover:text-red-500 p-1.5 rounded hover:bg-red-50 transition-colors"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     )
                 })}
                 
-                <div className="flex space-x-2 mt-3">
-                    <select 
-                        className="flex-1 p-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={newDepTargetId}
-                        onChange={e => setNewDepTargetId(e.target.value)}
-                    >
-                        <option value="">Select task to link...</option>
-                        {allTasks
-                            .filter(t => t.id !== task.id && !taskDeps.find(d => d.sourceId === t.id))
-                            .map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
-                    </select>
+                {/* Add Dependency Controls */}
+                <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 mt-2" ref={searchWrapperRef}>
+                    <div className="flex items-center bg-white border border-gray-300 rounded-md px-2 py-1.5 relative">
+                        <Search size={14} className="text-gray-400 mr-2"/>
+                        <input 
+                            type="text" 
+                            placeholder="Select tasks to link..." 
+                            value={depSearch}
+                            onChange={e => { setDepSearch(e.target.value); setIsSearchFocused(true); }}
+                            onFocus={() => setIsSearchFocused(true)}
+                            className="w-full text-sm outline-none text-gray-700 placeholder-gray-400 bg-transparent"
+                        />
+                        <ChevronDown size={14} className="text-gray-400 ml-2"/>
+                    </div>
+                    
+                    {/* Dropdown List */}
+                    {isSearchFocused && (
+                        <div className="max-h-48 overflow-y-auto border border-gray-200 rounded bg-white mt-2 shadow-sm">
+                            {availableTasks.length === 0 ? (
+                                <div className="p-3 text-xs text-gray-400 text-center italic">
+                                    {depSearch ? "No matching tasks found" : "No other tasks available"}
+                                </div>
+                            ) : (
+                                availableTasks.map(t => (
+                                    <div 
+                                        key={t.id} 
+                                        onClick={() => toggleDepSelection(t.id)}
+                                        className={`flex items-center p-2 text-sm cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0 ${selectedDepIds.has(t.id) ? 'bg-blue-50' : ''}`}
+                                    >
+                                        <div className={`mr-2 ${selectedDepIds.has(t.id) ? 'text-blue-600' : 'text-gray-300'}`}>
+                                            {selectedDepIds.has(t.id) ? <CheckSquare size={16}/> : <Square size={16}/>}
+                                        </div>
+                                        <span className="text-gray-700 truncate">{t.name}</span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    )}
+
                     <button 
-                        onClick={addDependency}
-                        disabled={!newDepTargetId}
-                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                        onClick={addSelectedDependencies}
+                        disabled={selectedDepIds.size === 0}
+                        className="w-full py-1.5 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-colors mt-2"
                     >
-                        Link
+                        Add Selected ({selectedDepIds.size})
                     </button>
                 </div>
+
             </div>
           </div>
 
