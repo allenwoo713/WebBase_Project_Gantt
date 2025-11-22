@@ -226,6 +226,24 @@ const App: React.FC = () => {
       setIsModalOpen(false);
   };
 
+  // New function to handle task ordering
+  const handleTaskMove = (taskId: string, direction: 'up' | 'down') => {
+      const index = tasks.findIndex(t => t.id === taskId);
+      if (index === -1) return;
+      
+      const newTasks = [...tasks];
+      
+      if (direction === 'up') {
+          if (index === 0) return; // Already at top
+          [newTasks[index - 1], newTasks[index]] = [newTasks[index], newTasks[index - 1]];
+      } else {
+          if (index === tasks.length - 1) return; // Already at bottom
+          [newTasks[index + 1], newTasks[index]] = [newTasks[index], newTasks[index + 1]];
+      }
+      
+      setTasks(newTasks);
+  };
+
   const handleAddTask = () => {
     const newId = Math.random().toString(36).substr(2, 9);
     const start = new Date(viewStartDate);
@@ -342,6 +360,7 @@ const App: React.FC = () => {
                 members={members} 
                 onTaskUpdate={handleTaskUpdate} 
                 onTaskClick={(t) => { setSelectedTask(t); setIsModalOpen(true); }}
+                onTaskMove={handleTaskMove}
                 onError={showError}
               />
            </div>

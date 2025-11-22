@@ -1,6 +1,6 @@
 import React from 'react';
 import { Task, ROW_HEIGHT, Member, Priority } from '../types';
-import { Calendar, User, CheckCircle2, Users, Target, Clock } from 'lucide-react';
+import { Calendar, User, CheckCircle2, Users, Target, Clock, ArrowUp, ArrowDown } from 'lucide-react';
 import { formatDate } from '../utils';
 
 interface TaskListProps {
@@ -8,10 +8,11 @@ interface TaskListProps {
   members: Member[];
   onTaskUpdate: (task: Task) => void;
   onTaskClick?: (task: Task) => void;
+  onTaskMove?: (taskId: string, direction: 'up' | 'down') => void;
   onError: (msg: string) => void;
 }
 
-const TaskList: React.FC<TaskListProps> = ({ tasks, members, onTaskUpdate, onTaskClick, onError }) => {
+const TaskList: React.FC<TaskListProps> = ({ tasks, members, onTaskUpdate, onTaskClick, onTaskMove, onError }) => {
   
   const handleChange = (id: string, field: keyof Task, value: any) => {
     const task = tasks.find(t => t.id === id);
@@ -88,7 +89,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, members, onTaskUpdate, onTas
             
             {/* Header Row */}
             <div className="flex items-center bg-gray-50 border-b border-gray-200 font-semibold text-xs text-gray-500 sticky top-0 z-10" style={{ height: 50 }}>
-                <div className="w-10 flex justify-center shrink-0">#</div>
+                <div className="w-16 flex justify-center shrink-0">#</div>
                 <div className="w-64 px-2 border-l border-gray-100 shrink-0">Task Name</div>
                 <div className="w-24 px-2 border-l border-gray-100 shrink-0">Role</div>
                 <div className="w-40 px-2 border-l border-gray-100 shrink-0">Owner (Effort)</div>
@@ -108,11 +109,30 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, members, onTaskUpdate, onTas
                 {tasks.map((task, index) => (
                 <div 
                     key={task.id} 
-                    className="flex items-center border-b border-gray-100 hover:bg-blue-50 transition-colors cursor-pointer bg-white"
+                    className="flex items-center border-b border-gray-100 hover:bg-blue-50 transition-colors cursor-pointer bg-white group"
                     style={{ height: ROW_HEIGHT }}
                     onDoubleClick={() => onTaskClick && onTaskClick(task)}
                 >
-                    <div className="w-10 flex justify-center text-gray-400 text-xs shrink-0">{index + 1}</div>
+                    {/* Index / Move Controls */}
+                    <div className="w-16 flex justify-center items-center text-gray-400 text-xs shrink-0 relative">
+                        <span className="group-hover:hidden">{index + 1}</span>
+                        <div className="hidden group-hover:flex items-center space-x-1">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onTaskMove?.(task.id, 'up'); }}
+                                disabled={index === 0}
+                                className="p-1 hover:bg-gray-200 rounded disabled:opacity-30 disabled:hover:bg-transparent text-gray-600"
+                            >
+                                <ArrowUp size={12} />
+                            </button>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onTaskMove?.(task.id, 'down'); }}
+                                disabled={index === tasks.length - 1}
+                                className="p-1 hover:bg-gray-200 rounded disabled:opacity-30 disabled:hover:bg-transparent text-gray-600"
+                            >
+                                <ArrowDown size={12} />
+                            </button>
+                        </div>
+                    </div>
                     
                     {/* Name */}
                     <div className="w-64 px-2 border-l border-transparent shrink-0">
