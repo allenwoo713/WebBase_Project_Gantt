@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Task, Dependency, ViewMode, TimeScale, DependencyType, ProjectData, Member, ProjectSettings, Holiday, Priority, TaskStatus } from './types';
+import { Task, Dependency, ViewMode, TimeScale, DependencyType, ProjectData, Member, ProjectSettings, Holiday, Priority, TaskStatus, FilterState } from './types';
 import GanttChart from './components/GanttChart';
 import TaskList from './components/TaskList';
 import TaskModal from './components/TaskModal';
 import MemberManager from './components/MemberManager';
 import SettingsModal from './components/SettingsModal';
-import { addDays, addMonths, addYears, getDatesRange, calculateCriticalPath, diffDays, diffProjectDays, addProjectDays, exportTasksToCSV } from './utils';
+import FilterPanel from './components/FilterPanel';
+import { addDays, addMonths, addYears, getDatesRange, calculateCriticalPath, diffDays, diffProjectDays, addProjectDays, exportTasksToCSV, formatDate } from './utils';
 import { 
     Table, Columns, BarChart3, Save, Plus, ChevronLeft, ChevronRight, FolderOpen,
-    Users, Settings as SettingsIcon, AlertTriangle, Download
+    Users, Settings as SettingsIcon, AlertTriangle, Download, Filter
 } from 'lucide-react';
 
 const STORAGE_KEY = 'progantt-data-v2';
@@ -39,6 +40,17 @@ const INITIAL_SETTINGS: ProjectSettings = {
     projectSavePath: ''
 };
 
+const INITIAL_FILTER: FilterState = {
+    statuses: [],
+    priorities: [],
+    ownerIds: [],
+    roles: [], // Added roles
+    progressMin: '',
+    progressMax: '',
+    dateRangeStart: { from: '', to: '' },
+    dateRangeEnd: { from: '', to: '' }
+};
+
 const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
   const [dependencies, setDependencies] = useState<Dependency[]>(INITIAL_DEPENDENCIES);
@@ -51,6 +63,10 @@ const App: React.FC = () => {
   const [viewDays, setViewDays] = useState<number>(30);
   const [showCriticalPath, setShowCriticalPath] = useState<boolean>(false);
   
+  // Filter State
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterState, setFilterState] = useState<FilterState>(INITIAL_FILTER);
+
   // Global Error State
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -76,6 +92,62 @@ const App: React.FC = () => {
   const viewEndDate = useMemo(() => addDays(viewStartDate, viewDays), [viewStartDate, viewDays]);
   const headerDates = useMemo(() => getDatesRange(viewStartDate, viewEndDate), [viewStartDate, viewEndDate]);
   
+  // Compute Filtered Tasks
+  const filteredTasks = useMemo(() => {
+      return tasks.filter(task => {
+          // 1. Status Filter
+          if (filterState.statuses.length > 0 && !filterState.statuses.includes(task.status)) {
+              return false;
+          }
+          
+          // 2. Priority Filter
+          if (filterState.priorities.length > 0 && !filterState.priorities.includes(task.priority)) {
+              return false;
+          }
+
+          // 3. Owner Filter
+          if (filterState.ownerIds.length > 0) {
+              const owner = task.ownerId || 'unassigned';
+              if (!filterState.ownerIds.includes(owner)) {
+                  return false;
+              }
+          }
+
+          // 4. Role Filter
+          if (filterState.roles.length > 0) {
+              if (!task.role || !filterState.roles.includes(task.role)) {
+                  return false;
+              }
+          }
+
+          // 5. Progress Filter
+          if (filterState.progressMin !== '' && task.progress < filterState.progressMin) return false;
+          if (filterState.progressMax !== '' && task.progress > filterState.progressMax) return false;
+
+          // 6. Start Date Range
+          if (filterState.dateRangeStart.from) {
+              const from = new Date(filterState.dateRangeStart.from + 'T00:00:00');
+              if (task.start < from) return false;
+          }
+          if (filterState.dateRangeStart.to) {
+              const to = new Date(filterState.dateRangeStart.to + 'T23:59:59');
+              if (task.start > to) return false;
+          }
+
+          // 7. End Date Range
+          if (filterState.dateRangeEnd.from) {
+              const from = new Date(filterState.dateRangeEnd.from + 'T00:00:00');
+              if (task.end < from) return false;
+          }
+          if (filterState.dateRangeEnd.to) {
+              const to = new Date(filterState.dateRangeEnd.to + 'T23:59:59');
+              if (task.end > to) return false;
+          }
+
+          return true;
+      });
+  }, [tasks, filterState]);
+
   const criticalTaskIds = useMemo(() => {
       if (!showCriticalPath) return new Set<string>();
       return calculateCriticalPath(tasks, dependencies);
@@ -84,7 +156,6 @@ const App: React.FC = () => {
   // Error Handler
   const showError = (msg: string) => {
       setErrorMessage(msg);
-      // Auto-clear after 4 seconds
       setTimeout(() => setErrorMessage(null), 4000);
   };
 
@@ -98,7 +169,6 @@ const App: React.FC = () => {
             ...t, 
             start: new Date(t.start), 
             end: new Date(t.end),
-            // Ensure status exists for migrated data
             status: t.status || (t.progress === 100 ? TaskStatus.Done : (t.progress === 0 ? TaskStatus.NotStarted : TaskStatus.Ongoing))
         })));
         setDependencies(parsed.dependencies || []);
@@ -237,7 +307,6 @@ const App: React.FC = () => {
       setIsModalOpen(false);
   };
 
-  // New function to handle task ordering
   const handleTaskMove = (taskId: string, direction: 'up' | 'down') => {
       const index = tasks.findIndex(t => t.id === taskId);
       if (index === -1) return;
@@ -245,10 +314,10 @@ const App: React.FC = () => {
       const newTasks = [...tasks];
       
       if (direction === 'up') {
-          if (index === 0) return; // Already at top
+          if (index === 0) return; 
           [newTasks[index - 1], newTasks[index]] = [newTasks[index], newTasks[index - 1]];
       } else {
-          if (index === tasks.length - 1) return; // Already at bottom
+          if (index === tasks.length - 1) return; 
           [newTasks[index + 1], newTasks[index]] = [newTasks[index], newTasks[index + 1]];
       }
       
@@ -273,6 +342,17 @@ const App: React.FC = () => {
      }]);
   };
 
+  // Helper to check if any filter is active
+  const isFilterActive = 
+    filterState.statuses.length > 0 || 
+    filterState.priorities.length > 0 || 
+    filterState.ownerIds.length > 0 ||
+    filterState.roles.length > 0 || // Added roles
+    filterState.progressMin !== '' ||
+    filterState.progressMax !== '' ||
+    filterState.dateRangeStart.from !== '' ||
+    filterState.dateRangeEnd.from !== '';
+
   return (
     <div className="flex flex-col h-screen bg-white text-slate-900 font-sans overflow-hidden">
       {/* Global Error Notification */}
@@ -287,7 +367,7 @@ const App: React.FC = () => {
       )}
 
       {/* Toolbar */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shadow-sm z-20">
+      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shadow-sm z-20 relative">
         <div className="flex items-center space-x-4">
            <div className="flex items-center space-x-2 mr-4">
                 <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">P</div>
@@ -333,6 +413,14 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-3">
+            {/* Filter Toggle */}
+            <button 
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={`flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${isFilterOpen || isFilterActive ? 'bg-blue-100 text-blue-700' : 'text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100'}`}
+            >
+                <Filter size={16} className="mr-1"/> {isFilterActive ? 'Filters On' : 'Filter'}
+            </button>
+
             {/* Export CSV Button (only in Table mode) */}
             {viewMode === ViewMode.Table && (
                 <button 
@@ -363,11 +451,20 @@ const App: React.FC = () => {
         </div>
       </header>
 
+      <FilterPanel 
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        members={members}
+        filter={filterState}
+        onFilterChange={setFilterState}
+        onClearFilters={() => setFilterState(INITIAL_FILTER)}
+      />
+
       <div className="flex-1 flex overflow-hidden relative">
         {(viewMode === ViewMode.Table || viewMode === ViewMode.Split) && (
            <div className={`${viewMode === ViewMode.Table ? 'w-full' : 'w-1/3'} flex flex-col z-10 shadow-xl bg-white border-r border-gray-200 transition-all duration-300 ease-in-out`}>
               <TaskList 
-                tasks={tasks}
+                tasks={filteredTasks} // Use filtered tasks
                 members={members} 
                 onTaskUpdate={handleTaskUpdate} 
                 onTaskClick={(t) => { setSelectedTask(t); setIsModalOpen(true); }}
@@ -396,6 +493,9 @@ const App: React.FC = () => {
                           <span className="w-3 h-3 rounded bg-blue-500 ml-2"></span> Medium
                           <span className="w-3 h-3 rounded bg-green-500 ml-2"></span> Low
                       </div>
+                  </div>
+                  <div className="text-gray-400">
+                      {filteredTasks.length} tasks
                   </div>
               </div>
 
@@ -449,7 +549,7 @@ const App: React.FC = () => {
               </div>
 
               <GanttChart 
-                  tasks={tasks}
+                  tasks={filteredTasks} // Use filtered tasks
                   dependencies={dependencies}
                   viewStartDate={viewStartDate}
                   viewEndDate={viewEndDate}

@@ -102,6 +102,17 @@ export enum ViewMode {
     members: Member[];
     settings?: ProjectSettings;
   }
+
+  export interface FilterState {
+    statuses: TaskStatus[];
+    priorities: Priority[];
+    ownerIds: string[];
+    roles: string[]; // Added roles filter
+    progressMin: number | '';
+    progressMax: number | '';
+    dateRangeStart: { from: string; to: string }; // Task Start must be within this range
+    dateRangeEnd: { from: string; to: string };   // Task End must be within this range
+  }
   
   export const COLUMN_WIDTH = 60; 
   export const ROW_HEIGHT = 44;   
