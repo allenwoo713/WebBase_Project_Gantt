@@ -24,6 +24,12 @@ export enum ViewMode {
     Medium = 'Medium',
     Low = 'Low'
   }
+
+  export enum TaskStatus {
+    NotStarted = 'Not Started',
+    Ongoing = 'Ongoing',
+    Done = 'Done'
+  }
   
   export interface Dependency {
     id: string;
@@ -54,7 +60,8 @@ export enum ViewMode {
     end: Date;
     duration: number; // in days
     progress: number; // 0-100
-    priority: Priority; // Added priority
+    priority: Priority;
+    status: TaskStatus; // Added status
     
     // Assignment
     ownerId?: string;

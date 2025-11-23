@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Task, Dependency, ViewMode, TimeScale, DependencyType, ProjectData, Member, ProjectSettings, Holiday, Priority } from './types';
+import { Task, Dependency, ViewMode, TimeScale, DependencyType, ProjectData, Member, ProjectSettings, Holiday, Priority, TaskStatus } from './types';
 import GanttChart from './components/GanttChart';
 import TaskList from './components/TaskList';
 import TaskModal from './components/TaskModal';
@@ -22,8 +22,8 @@ const INITIAL_MEMBERS: Member[] = [
 ];
 
 const INITIAL_TASKS: Task[] = [
-  { id: '1', name: 'Project Initiation', start: new Date(2024, 5, 1), end: new Date(2024, 5, 5), duration: 4, progress: 100, ownerId: 'm1', role: 'PM', type: 'phase', priority: Priority.High },
-  { id: '2', name: 'Requirement Analysis', start: new Date(2024, 5, 6), end: new Date(2024, 5, 10), duration: 4, progress: 60, ownerId: 'm2', role: 'Analyst', type: 'task', priority: Priority.Medium },
+  { id: '1', name: 'Project Initiation', start: new Date(2024, 5, 1), end: new Date(2024, 5, 5), duration: 4, progress: 100, ownerId: 'm1', role: 'PM', type: 'phase', priority: Priority.High, status: TaskStatus.Done },
+  { id: '2', name: 'Requirement Analysis', start: new Date(2024, 5, 6), end: new Date(2024, 5, 10), duration: 4, progress: 60, ownerId: 'm2', role: 'Analyst', type: 'task', priority: Priority.Medium, status: TaskStatus.Ongoing },
 ];
 
 const INITIAL_DEPENDENCIES: Dependency[] = [
@@ -94,7 +94,13 @@ const App: React.FC = () => {
     if (saved) {
       try {
         const parsed: ProjectData = JSON.parse(saved);
-        setTasks((parsed.tasks || []).map(t => ({ ...t, start: new Date(t.start), end: new Date(t.end) })));
+        setTasks((parsed.tasks || []).map(t => ({ 
+            ...t, 
+            start: new Date(t.start), 
+            end: new Date(t.end),
+            // Ensure status exists for migrated data
+            status: t.status || (t.progress === 100 ? TaskStatus.Done : (t.progress === 0 ? TaskStatus.NotStarted : TaskStatus.Ongoing))
+        })));
         setDependencies(parsed.dependencies || []);
         setMembers(parsed.members || []);
         
@@ -140,7 +146,12 @@ const App: React.FC = () => {
       reader.onload = (ev) => {
           try {
               const parsed: ProjectData = JSON.parse(ev.target?.result as string);
-              setTasks((parsed.tasks || []).map(t => ({ ...t, start: new Date(t.start), end: new Date(t.end) })));
+              setTasks((parsed.tasks || []).map(t => ({ 
+                  ...t, 
+                  start: new Date(t.start), 
+                  end: new Date(t.end),
+                  status: t.status || (t.progress === 100 ? TaskStatus.Done : (t.progress === 0 ? TaskStatus.NotStarted : TaskStatus.Ongoing))
+              })));
               setDependencies(parsed.dependencies || []);
               setMembers(parsed.members || []);
               
@@ -249,7 +260,7 @@ const App: React.FC = () => {
     const start = new Date(viewStartDate);
     const end = addProjectDays(start, 2, settings); 
     const newTask: Task = {
-        id: newId, name: 'New Task', start, end, duration: 2, progress: 0, type: 'task', priority: Priority.Medium
+        id: newId, name: 'New Task', start, end, duration: 2, progress: 0, type: 'task', priority: Priority.Medium, status: TaskStatus.NotStarted
     };
     setTasks([...tasks, newTask]);
   };

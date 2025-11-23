@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Task, Dependency, DependencyType, Member, TaskAssignment, ProjectSettings, Priority } from '../types';
-import { X, Trash2, Link, Calendar, Users, Target, AlignLeft, AlertCircle, Search, CheckSquare, Square, ChevronDown } from 'lucide-react';
+import { Task, Dependency, DependencyType, Member, TaskAssignment, ProjectSettings, Priority, TaskStatus } from '../types';
+import { X, Trash2, Link, Calendar, Users, Target, AlignLeft, AlertCircle, Search, CheckSquare, Square, ChevronDown, Activity } from 'lucide-react';
 import { formatDate, diffProjectDays } from '../utils';
 
 interface TaskModalProps {
@@ -35,13 +35,13 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [depSearch, setDepSearch] = useState('');
   const [selectedDepIds, setSelectedDepIds] = useState<Set<string>>(new Set());
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const searchWrapperRef = useRef<HTMLDivElement>(null); // Restored Ref
+  const searchWrapperRef = useRef<HTMLDivElement>(null); 
   const [deleteDepConfirmId, setDeleteDepConfirmId] = useState<string | null>(null);
   
   const [newMemberId, setNewMemberId] = useState<string>('');
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
 
-  // Filter available tasks for dependencies (exclude self and already linked)
+  // Filter available tasks for dependencies
   const availableTasks = useMemo(() => {
       if (!task) return [];
       const term = depSearch.trim().toLowerCase();
@@ -52,20 +52,18 @@ const TaskModal: React.FC<TaskModalProps> = ({
       );
   }, [allTasks, task, taskDeps, depSearch]);
 
-  // INITIALIZATION EFFECT
   useEffect(() => {
     if (isOpen && task) {
-        // If we are opening a NEW task (different ID), or if editedTask is null
         if (!editedTask || editedTask.id !== task.id) {
             setEditedTask({ 
                 ...task, 
                 priority: task.priority || Priority.Medium,
+                status: task.status || TaskStatus.NotStarted,
                 ownerEffort: task.ownerEffort ?? 100,
                 assignments: task.assignments || []
             });
             setTaskDeps(dependencies.filter(d => d.targetId === task.id));
             
-            // Reset UI states specifically for a new session
             setIsDeleteConfirming(false);
             setSelectedDepIds(new Set());
             setDepSearch('');
@@ -104,6 +102,43 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
         return { ...prev, ...updates };
     });
+  };
+
+  // Logic for Status <-> Progress Synchronization
+  const handleStatusChange = (newStatus: TaskStatus) => {
+      setEditedTask(prev => {
+          if (!prev) return null;
+          let newProgress = prev.progress;
+
+          if (newStatus === TaskStatus.NotStarted) {
+              newProgress = 0;
+          } else if (newStatus === TaskStatus.Done) {
+              newProgress = 100;
+          } else if (newStatus === TaskStatus.Ongoing) {
+              // If moving to ongoing, ensure progress is between 1 and 99
+              if (newProgress === 0) newProgress = 1;
+              if (newProgress === 100) newProgress = 99;
+          }
+
+          return { ...prev, status: newStatus, progress: newProgress };
+      });
+  };
+
+  const handleProgressChange = (val: number) => {
+      setEditedTask(prev => {
+          if (!prev) return null;
+          let newStatus = prev.status;
+
+          if (val === 0) {
+              newStatus = TaskStatus.NotStarted;
+          } else if (val === 100) {
+              newStatus = TaskStatus.Done;
+          } else {
+              newStatus = TaskStatus.Ongoing;
+          }
+
+          return { ...prev, progress: val, status: newStatus };
+      });
   };
 
   const handleDateChange = (field: 'start' | 'end', value: string) => {
@@ -261,7 +296,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                         <input 
                             type="number" min="0" max="100"
                             value={editedTask.progress}
-                            onChange={e => handleChange('progress', parseInt(e.target.value))}
+                            onChange={e => handleProgressChange(parseInt(e.target.value))}
                             className={`${inputBaseClass} text-right pr-8`}
                         />
                         <span className="absolute right-3 text-gray-500 pointer-events-none">%</span>
@@ -269,7 +304,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 </div>
              </div>
 
-             <div className="grid grid-cols-3 gap-4">
+             <div className="grid grid-cols-4 gap-4">
                  <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1 flex items-center">
                         <AlertCircle size={14} className="mr-1"/> Priority
@@ -282,6 +317,20 @@ const TaskModal: React.FC<TaskModalProps> = ({
                         <option value={Priority.High}>High</option>
                         <option value={Priority.Medium}>Medium</option>
                         <option value={Priority.Low}>Low</option>
+                    </select>
+                 </div>
+                 <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1 flex items-center">
+                        <Activity size={14} className="mr-1"/> Status
+                    </label>
+                    <select
+                        value={editedTask.status}
+                        onChange={e => handleStatusChange(e.target.value as TaskStatus)}
+                        className={inputBaseClass}
+                    >
+                        <option value={TaskStatus.NotStarted}>Not Started</option>
+                        <option value={TaskStatus.Ongoing}>Ongoing</option>
+                        <option value={TaskStatus.Done}>Done</option>
                     </select>
                  </div>
                  <div>
@@ -412,6 +461,60 @@ const TaskModal: React.FC<TaskModalProps> = ({
                      </div>
                  </div>
 
+             </div>
+          </div>
+
+          <hr className="border-gray-100" />
+
+          {/* Section 3: Schedule & Scores */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+             {/* Schedule */}
+             <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-700 flex items-center uppercase tracking-wide">
+                    <Calendar size={16} className="mr-2 text-blue-600"/> Schedule
+                </h3>
+                <div className="space-y-3">
+                    <div>
+                        <label className="text-xs font-semibold text-gray-500 mb-1 block">Start Date</label>
+                        <input 
+                            type="date" 
+                            value={formatDate(editedTask.start)} 
+                            onChange={e => handleDateChange('start', e.target.value)} 
+                            onClick={showPicker}
+                            className={dateInputClass} 
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-gray-500 mb-1 block">End Date</label>
+                        <input 
+                            type="date" 
+                            value={formatDate(editedTask.end)} 
+                            onChange={e => handleDateChange('end', e.target.value)} 
+                            onClick={showPicker}
+                            className={dateInputClass} 
+                        />
+                    </div>
+                    <div className="pt-1 text-sm text-gray-600 bg-blue-50 p-2 rounded border border-blue-100">
+                        Duration: <span className="font-bold text-blue-800">{editedTask.duration} days</span>
+                    </div>
+                </div>
+             </div>
+
+             {/* Scores */}
+             <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-700 flex items-center uppercase tracking-wide">
+                    <Target size={16} className="mr-2 text-blue-600"/> Metrics
+                </h3>
+                 <div className="space-y-3">
+                    <div>
+                        <label className="text-xs font-semibold text-gray-500 mb-1 block">Baseline Score</label>
+                        <input type="text" value={editedTask.baselineScore || ''} onChange={e => handleChange('baselineScore', e.target.value)} className={inputBaseClass} placeholder="-" />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-gray-500 mb-1 block">Actual Score</label>
+                        <input type="text" value={editedTask.score || ''} onChange={e => handleChange('score', e.target.value)} className={inputBaseClass} placeholder="-" />
+                    </div>
+                </div>
              </div>
           </div>
 

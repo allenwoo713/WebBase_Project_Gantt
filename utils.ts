@@ -1,4 +1,4 @@
-import { Task, Dependency, DependencyType, ProjectSettings, Holiday, Member } from './types';
+import { Task, Dependency, DependencyType, ProjectSettings, Holiday, Member, TaskStatus } from './types';
 
 // --- Standard Date Math ---
 
@@ -200,8 +200,10 @@ export const calculateCriticalPath = (tasks: Task[], dependencies: Dependency[])
 
 export const exportTasksToCSV = (tasks: Task[], members: Member[], dependencies: Dependency[]) => {
     const headers = [
+        '#', 
         'Task Name', 
         'Priority', 
+        'Status', 
         'Role', 
         'Owner', 
         'Owner Effort', 
@@ -217,7 +219,7 @@ export const exportTasksToCSV = (tasks: Task[], members: Member[], dependencies:
         'Description'
     ];
     
-    const rows = tasks.map(task => {
+    const rows = tasks.map((task, index) => {
         // Owner
         const owner = members.find(m => m.id === task.ownerId)?.name || '';
         
@@ -247,8 +249,10 @@ export const exportTasksToCSV = (tasks: Task[], members: Member[], dependencies:
         };
 
         return [
+            index + 1, // # Column
             escape(task.name),
             task.priority || 'Medium',
+            task.status || 'Not Started', // Status Column
             escape(task.role || ''),
             escape(owner),
             task.ownerEffort || 100,
