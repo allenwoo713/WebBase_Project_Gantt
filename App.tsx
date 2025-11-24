@@ -9,10 +9,12 @@ import FilterPanel from './components/FilterPanel';
 import { addDays, addMonths, addYears, getDatesRange, calculateCriticalPath, diffDays, diffProjectDays, addProjectDays, exportTasksToCSV, formatDate } from './utils';
 import {
     Table, Columns, BarChart3, Save, Plus, ChevronLeft, ChevronRight, FolderOpen,
-    Users, Settings as SettingsIcon, AlertTriangle, Download, Filter, Maximize
+    Users, Settings as SettingsIcon, AlertTriangle, Download, Filter, Maximize, Info
 } from 'lucide-react';
 
 const STORAGE_KEY = 'progantt-data-v2';
+const APP_VERSION = '1.0.0-beta';
+const APP_AUTHOR = 'Allen Woo';
 
 const INITIAL_MEMBERS: Member[] = [
     { id: 'm1', name: 'Alice', role: 'Project Manager', email: 'alice@corp.com', color: '#3b82f6' },
@@ -75,6 +77,7 @@ const App: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isMemberManagerOpen, setIsMemberManagerOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isAboutOpen, setIsAboutOpen] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const headerRef = useRef<HTMLDivElement>(null);
@@ -598,6 +601,10 @@ const App: React.FC = () => {
                     <button onClick={saveProject} className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" title="Save Project Backup (.json)">
                         <Save size={20} />
                     </button>
+
+                    <button onClick={() => setIsAboutOpen(true)} className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" title="About">
+                        <Info size={20} />
+                    </button>
                 </div>
             </header>
 
@@ -746,6 +753,43 @@ const App: React.FC = () => {
                 settings={settings}
                 onSave={handleSettingsSave}
             />
+
+            {/* About Modal */}
+            {isAboutOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setIsAboutOpen(false)}>
+                    <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex flex-col items-center">
+                            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center text-white font-bold text-3xl mb-4 shadow-lg">
+                                P
+                            </div>
+                            <h2 className="text-2xl font-bold text-slate-800 mb-2">ProGantt</h2>
+                            <div className="text-center space-y-3 mb-6">
+                                <p className="text-sm text-gray-600">
+                                    <span className="font-semibold text-blue-600">Version:</span> {APP_VERSION}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                    <span className="font-semibold text-blue-600">Author:</span> {APP_AUTHOR}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                    <span className="font-semibold text-blue-600">Release Date:</span> November 2024
+                                </p>
+                            </div>
+                            <div className="w-full border-t border-gray-200 pt-4 mb-4">
+                                <p className="text-xs text-gray-500 text-center leading-relaxed">
+                                    A professional project management tool with Gantt chart visualization,
+                                    task dependencies, critical path analysis, and team collaboration features.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setIsAboutOpen(false)}
+                                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
