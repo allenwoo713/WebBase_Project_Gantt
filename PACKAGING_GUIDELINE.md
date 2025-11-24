@@ -1,6 +1,6 @@
 # ProGantt Packaging Guideline
 
-This document outlines the standard procedure for packaging the ProGantt application to ensure a consistent and optimized file size.
+This document outlines the standard procedure for packaging the ProGantt application with optimized file size and production-ready quality.
 
 ## Prerequisites
 
@@ -10,8 +10,8 @@ This document outlines the standard procedure for packaging the ProGantt applica
 ## Build & Package Process
 
 We use a two-step process:
-1.  **Build**: Compile the React/TypeScript frontend into static assets.
-2.  **Package**: Bundle the Electron runtime with the built assets, excluding unnecessary development files.
+1. **Build**: Compile the React/TypeScript frontend into static assets.
+2. **Package**: Bundle the Electron runtime with the built assets, excluding unnecessary development files.
 
 ### 1. Build Frontend
 
@@ -23,28 +23,110 @@ npm run build
 
 This creates the `dist` directory containing the production-ready frontend code.
 
-### 2. Package Application
+### 2. Package Application (Optimized)
 
-Use `electron-packager` with specific ignore rules to exclude `node_modules`, source code, and other dev artifacts. This drastically reduces the package size (from ~200MB+ to <100MB).
+Use `electron-packager` with comprehensive ignore rules to exclude source code, development files, and temporary directories. This ensures:
+- ✅ **Clean package**: Only production files (dist/, electron/, package.json)
+- ✅ **Small size**: App folder ~0.43 MB (vs 10+ MB with source code)
+- ✅ **Secure**: No source code exposure
+- ✅ **Professional**: Production-ready distribution
 
 **Command:**
 
 ```bash
-npx electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite --icon="public/icon.ico" --ignore="^/src" --ignore="^/node_modules" --ignore="^/.git" --ignore="^/.vscode" --ignore="^/release" --ignore="^/release-packager" --ignore="^/public"
+npx electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite --icon="public/icon.ico" --ignore="^/src$" --ignore="^/node_modules$" --ignore="^/.git" --ignore="^/.vscode" --ignore="^/release$" --ignore="^/release-packager$" --ignore="^/public$" --ignore="^/.cache$" --ignore="^/.agent$" --ignore="^/components$" --ignore="^/docs$" --ignore="\.tsx$" --ignore="\.ts$" --ignore="^/.*\.md$" --ignore="vite\.config" --ignore="tsconfig" --ignore="^/index\.html$" --ignore="^/index\.tsx$" --ignore="^/metadata\.json$" --ignore="^/changelog"
 ```
 
 **Key Flags Explanation:**
-- `--platform=win32 --arch=x64`: Target Windows 64-bit.
-- `--out=release-packager`: Output directory.
-- `--overwrite`: Replace existing builds.
-- `--ignore="..."`: Critical for size optimization. We explicitly ignore:
-    - `^/src`: Original source code (not needed, we use `dist`).
-    - `^/node_modules`: Dev dependencies (Electron bundles what it needs, or we rely on pre-bundled logic. *Note: If runtime dependencies are needed, they should be handled carefully, but for this app, the build is self-contained in `dist` and `electron/main.cjs` uses standard modules*).
-    - `^/.git`: Git history.
-    - `^/.vscode`: Editor config.
-    - `^/public`: Raw public assets (Vite copies them to `dist`).
+
+- `--platform=win32 --arch=x64`: Target Windows 64-bit
+- `--out=release-packager`: Output directory
+- `--overwrite`: Replace existing builds
+- `--icon="public/icon.ico"`: Application icon
+- `--ignore="..."`: Critical for optimization. We exclude:
+  - **Source directories**: `components/`, `docs/`, `src/`
+  - **Source files**: All `.tsx` and `.ts` files
+  - **Config files**: `tsconfig.json`, `vite.config.ts`
+  - **Documentation**: All `.md` files
+  - **Temporary files**: `.cache/`, `.agent/`
+  - **Development files**: `node_modules/`, `.git/`, `.vscode/`
+  - **Build artifacts**: `release/`, `release-packager/`
+  - **Public assets**: `public/` (already copied to `dist/` by Vite)
+
+## Packaged Application Structure
+
+After packaging, the `resources/app/` directory should **only** contain:
+
+```
+resources/app/
+├── dist/              # Compiled frontend code
+│   ├── index.html
+│   └── assets/
+│       └── index-xxx.js
+├── electron/          # Electron main process
+│   ├── main.cjs
+│   └── preload.cjs
+└── package.json       # Package metadata
+```
+
+**What's NOT included** (and shouldn't be):
+- ❌ Source code files (App.tsx, types.ts, utils.ts, etc.)
+- ❌ Component source files (components/ directory)
+- ❌ Configuration files (tsconfig.json, vite.config.ts)
+- ❌ Documentation files (README.md, PACKAGING_GUIDELINE.md)
+- ❌ Temporary directories (.cache/, .agent/)
+
+## Verification
+
+After packaging, verify the contents:
+
+```powershell
+# List files in packaged app
+Get-ChildItem "release-packager\ProGantt-win32-x64\resources\app" -Name
+
+# Expected output:
+# dist
+# electron
+# package.json
+
+# Check app folder size
+$size = (Get-ChildItem "release-packager\ProGantt-win32-x64\resources\app" -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
+"App folder size: $([math]::Round($size, 2)) MB"
+
+# Expected: ~0.43 MB
+```
 
 ## Output
 
 The packaged application will be available in:
-`release-packager/ProGantt-win32-x64/ProGantt.exe`
+```
+release-packager/ProGantt-win32-x64/ProGantt.exe
+```
+
+## One-Line Build & Package
+
+For convenience, you can combine both steps:
+
+```bash
+npm run build && npx electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite --icon="public/icon.ico" --ignore="^/src$" --ignore="^/node_modules$" --ignore="^/.git" --ignore="^/.vscode" --ignore="^/release$" --ignore="^/release-packager$" --ignore="^/public$" --ignore="^/.cache$" --ignore="^/.agent$" --ignore="^/components$" --ignore="^/docs$" --ignore="\.tsx$" --ignore="\.ts$" --ignore="^/.*\.md$" --ignore="vite\.config" --ignore="tsconfig" --ignore="^/index\.html$" --ignore="^/index\.tsx$" --ignore="^/metadata\.json$" --ignore="^/changelog"
+```
+
+## Troubleshooting
+
+### Package contains source files
+
+If you see source files (`.tsx`, `.ts`) in `resources/app/`, ensure:
+1. You're using the complete ignore rules from this guide
+2. The ignore patterns use proper regex syntax (e.g., `\.tsx$` not `.tsx`)
+3. Run with `--overwrite` to replace old builds
+
+### Package size too large
+
+- Verify only `dist/`, `electron/`, and `package.json` are in `resources/app/`
+- Check that `node_modules/` is excluded
+- Ensure all source files are excluded
+
+### Icon not showing
+
+- Verify `public/icon.ico` exists
+- Use absolute path if relative path fails: `--icon="C:\path\to\icon.ico"`
