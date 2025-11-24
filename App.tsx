@@ -15,6 +15,7 @@ import {
 const STORAGE_KEY = 'progantt-data-v2';
 const APP_VERSION = '1.0.0-beta';
 const APP_AUTHOR = 'Allen Woo';
+const APP_RELEASE_DATE = '2025-11-25';
 
 const INITIAL_MEMBERS: Member[] = [
     { id: 'm1', name: 'Alice', role: 'Project Manager', email: 'alice@corp.com', color: '#3b82f6' },
@@ -521,7 +522,7 @@ const App: React.FC = () => {
             <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shadow-sm z-20 relative">
                 <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-2 mr-4">
-                        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">P</div>
+                        <img src="./icon.ico" alt="ProGantt" className="w-8 h-8 rounded-lg" />
                         <h1 className="text-lg font-bold text-slate-800 hidden md:block">ProGantt</h1>
                     </div>
 
@@ -759,9 +760,7 @@ const App: React.FC = () => {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setIsAboutOpen(false)}>
                     <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex flex-col items-center">
-                            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center text-white font-bold text-3xl mb-4 shadow-lg">
-                                P
-                            </div>
+                            <img src="./icon.ico" alt="ProGantt" className="w-20 h-20 rounded-2xl mb-4 shadow-lg" />
                             <h2 className="text-2xl font-bold text-slate-800 mb-2">ProGantt</h2>
                             <div className="text-center space-y-3 mb-6">
                                 <p className="text-sm text-gray-600">
@@ -771,7 +770,7 @@ const App: React.FC = () => {
                                     <span className="font-semibold text-blue-600">Author:</span> {APP_AUTHOR}
                                 </p>
                                 <p className="text-sm text-gray-600">
-                                    <span className="font-semibold text-blue-600">Release Date:</span> November 2024
+                                    <span className="font-semibold text-blue-600">Release Date:</span> {APP_RELEASE_DATE}
                                 </p>
                             </div>
                             <div className="w-full border-t border-gray-200 pt-4 mb-4">

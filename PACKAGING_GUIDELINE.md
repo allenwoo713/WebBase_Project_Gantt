@@ -9,9 +9,34 @@ This document outlines the standard procedure for packaging the ProGantt applica
 
 ## Build & Package Process
 
-We use a two-step process:
-1. **Build**: Compile the React/TypeScript frontend into static assets.
-2. **Package**: Bundle the Electron runtime with the built assets, excluding unnecessary development files.
+We use a three-step process:
+1. **Verify**: Check version and release date information
+2. **Build**: Compile the React/TypeScript frontend into static assets
+3. **Package**: Bundle the Electron runtime with the built assets, excluding unnecessary development files
+
+### 0. Pre-Build Verification (MANDATORY)
+
+**Before every build**, verify the following information is up-to-date:
+
+#### Check Current System Date
+```powershell
+Get-Date -Format "yyyy-MM-dd"
+```
+
+#### Update Version Information in Files
+
+1. **package.json**:
+   - Update `version` field (e.g., "1.0.0-beta")
+   - Verify `author` field is set
+
+2. **App.tsx** (lines 16-18):
+   ```typescript
+   const APP_VERSION = '1.0.0-beta';  // Match package.json version
+   const APP_AUTHOR = 'Allen Woo';
+   const APP_RELEASE_DATE = '2025-11-25';  // Use current system date from above
+   ```
+
+**⚠️ IMPORTANT**: Always use the actual system date from the command above, not a guessed date!
 
 ### 1. Build Frontend
 
