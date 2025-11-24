@@ -1,61 +1,49 @@
-<div align="center">
+﻿#  ProGantt - Professional Project Management Tool
 
-# 📊 ProGantt
+**A powerful, feature-rich Gantt chart application for project management**
 
-**Professional Gantt Chart & Project Management Tool**
-
-A powerful standalone desktop application for project planning, task management, and team collaboration.
-
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/allenwoo713/WebBase_Project_Gantt/releases/tag/v1.0.0)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20x64-lightgrey.svg)](https://github.com/allenwoo713/WebBase_Project_Gantt/releases)
-
-</div>
+**Version:** 1.0.0-beta | **Author:** Allen Woo | **Released:** 2025-11-25
 
 ---
 
-## �?Features
+##  Features
 
-### 📈 Gantt Chart Visualization
-- **Interactive Timeline**: Drag-and-drop task scheduling with visual feedback
-- **Multiple Time Scales**: Day, Month, Quarter, Half-Year, and Year views
-- **Critical Path Analysis**: Automatically identify and highlight critical tasks
-- **Zoom to Fit**: Smart auto-zoom to display all tasks optimally
+###  Core Functionality
+- **Interactive Gantt Chart**: Visualize project timelines with drag-and-drop task management
+- **Task Dependencies**: Create and manage task relationships (Finish-to-Start, Finish-to-Finish)
+- **Critical Path Analysis**: Automatically identify critical tasks that impact project completion
+- **Multiple View Modes**: Switch between Table, Split, and Gantt views
+- **Flexible Time Scales**: Day, Month, Quarter, Half Year, and Year views with auto-fit
 
-### 👥 Team Management
-- **Member Profiles**: Manage team members with roles, emails, and color coding
-- **Task Assignment**: Assign tasks to specific team members
-- **Role-based Filtering**: Filter tasks by role or team member
+###  Team Collaboration
+- **Member Management**: Add team members with roles, colors, and contact information
+- **Task Assignment**: Assign tasks to owners and team members with effort tracking
+- **Role-Based Organization**: Organize tasks by roles (PM, Developer, Designer, etc.)
 
-### 📋 Task Management
-- **Rich Task Properties**: Name, duration, progress, priority, status, and more
-- **Task Dependencies**: Create Finish-to-Start (FS) relationships between tasks
-- **Drag-and-Drop Reordering**: Easily reorganize task lists
-- **Progress Tracking**: Visual progress bars and status indicators
+###  Advanced Features
+- **Progress Tracking**: Monitor task completion with visual progress bars
+- **Priority Levels**: Categorize tasks as High, Medium, or Low priority
+- **Task Status**: Track tasks through Not Started, Ongoing, and Done states
+- **Advanced Filtering**: Filter by status, priority, owner, role, progress, and date ranges
+- **Working Day Calculation**: Configure holidays, make-up days, and weekend settings
 
-### 🔧 Advanced Features
-- **Project Settings**: Configure weekends, holidays, and make-up days
-- **Smart Filtering**: Filter by status, priority, owner, role, progress, and date ranges
-- **CSV Export**: Export task data for external analysis
-- **Auto-Save**: Automatic local storage with manual save/load options
-- **Error Recovery**: Intelligent save path validation with auto-recovery
-
-### 💾 Data Persistence
-- **Local Storage**: Automatic saving to browser localStorage
-- **File Export/Import**: Save and load projects as JSON files
-- **Path Validation**: Automatic "Save As" dialog when save path is invalid
-- **Settings Sync**: Project settings automatically update with file paths
+###  Data Management
+- **Auto-Save**: Automatic saving to browser localStorage
+- **Project Export/Import**: Save and load projects as JSON files
+- **CSV Export**: Export task data to CSV format (Table view)
+- **Electron Integration**: Desktop app with native file system access
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### For End Users (Standalone Application)
 
 1. **Download** the latest release from [Releases](https://github.com/allenwoo713/WebBase_Project_Gantt/releases)
 2. **Extract** the ZIP file to your preferred location
-3. **Run** `ProGantt.exe` from the extracted folder
-4. **Start Planning** your projects!
+3. **Run** ProGantt.exe from the extracted folder
+
+No installation required - just extract and run!
 
 ### For Developers
 
@@ -68,6 +56,8 @@ A powerful standalone desktop application for project planning, task management,
 ```bash
 # Clone the repository
 git clone https://github.com/allenwoo713/WebBase_Project_Gantt.git
+
+# Navigate to project directory
 cd WebBase_Project_Gantt
 
 # Install dependencies
@@ -77,145 +67,127 @@ npm install
 npm run dev
 ```
 
-The application will be available at `http://localhost:3000`
+The application will be available at http://localhost:3000
+
+#### Build for Production
+
+```bash
+# Build web application
+npm run build
+
+# Package as Electron app (see PACKAGING_GUIDELINE.md for details)
+npx electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite
+```
+
+For detailed packaging instructions, see [PACKAGING_GUIDELINE.md](PACKAGING_GUIDELINE.md).
 
 ---
 
-## 🔨 Building from Source
+##  User Guide
 
-### Build Web Application
+### Creating Your First Project
 
-```bash
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-```
-
-### Build Standalone Application
-
-```bash
-# 1. Build the frontend
-npm run build
-
-# 2. Package as Electron app
-npx electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite --icon="public/icon.ico" --ignore="^/src" --ignore="^/node_modules" --ignore="^/.git" --ignore="^/.vscode" --ignore="^/release" --ignore="^/release-packager" --ignore="^/public"
-```
-
-The packaged application will be in `release-packager/ProGantt-win32-x64/`
-
-For detailed packaging instructions, see [PACKAGING_GUIDELINE.md](PACKAGING_GUIDELINE.md)
-
----
-
-## 📖 Usage Guide
-
-### Creating a New Project
-
-1. Click the **"+ Task"** button to add tasks
+1. Click **+ Task** button in the toolbar
 2. Fill in task details (name, dates, duration, assignee, etc.)
-3. Create dependencies by clicking task bars in Gantt view
+3. Create dependencies by clicking and dragging from task bars in Gantt view
 4. Adjust timeline using the time scale selector
 
 ### Saving Your Project
 
 - **Auto-Save**: Projects are automatically saved to browser localStorage
-- **Manual Save**: Click the 💾 Save button to export as JSON file
-- **Save As**: If the save path is invalid, a "Save As" dialog will automatically appear
+- **Manual Save**: Click the Save button to export as JSON file
+- **Save As**: If the save path is invalid, a Save As dialog will automatically appear
+- **Error Recovery**: Detailed error messages with auto-recovery options
 
 ### Managing Team Members
 
-1. Click **"Members"** button in the toolbar
+1. Click **Members** button in the toolbar
 2. Add, edit, or remove team members
 3. Assign colors and roles to members
 4. Assign members to tasks in the task modal
 
 ### Filtering Tasks
 
-1. Click the **"Filter"** button
+1. Click the **Filter** button
 2. Select criteria (status, priority, owner, role, progress, dates)
 3. Apply filters to focus on specific tasks
 4. Clear filters to show all tasks
 
 ---
 
-## 🛠�?Technology Stack
+##  Technology Stack
 
 - **Frontend**: React 18 + TypeScript
 - **Build Tool**: Vite
 - **Desktop Framework**: Electron
 - **UI Components**: Custom React components
 - **Icons**: Lucide React
-- **Styling**: Tailwind CSS (utility-first)
+- **Styling**: Tailwind CSS
 - **State Management**: React Hooks
 - **Data Persistence**: LocalStorage + File System (Electron)
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 WebBase_Project_Gantt/
-├── src/
-�?  ├── components/          # React components
-�?  �?  ├── GanttChart.tsx   # Main Gantt chart component
-�?  �?  ├── TaskList.tsx     # Task list view
-�?  �?  ├── TaskModal.tsx    # Task editing modal
-�?  �?  ├── MemberManager.tsx # Team member management
-�?  �?  ├── SettingsModal.tsx # Project settings
-�?  �?  └── FilterPanel.tsx  # Task filtering
-�?  ├── App.tsx              # Main application component
-�?  ├── types.ts             # TypeScript type definitions
-�?  └── utils.ts             # Utility functions
-├── electron/
-�?  ├── main.cjs             # Electron main process
-�?  └── preload.cjs          # Electron preload script
-├── public/
-�?  └── icon.ico             # Application icon
-├── dist/                    # Build output (generated)
-└── release-packager/        # Packaged app (generated)
+ components/              # React components
+    GanttChart.tsx      # Main Gantt chart component
+    TaskList.tsx        # Task list view
+    TaskModal.tsx       # Task editing modal
+    MemberManager.tsx   # Team member management
+    SettingsModal.tsx   # Project settings
+    FilterPanel.tsx     # Task filtering
+ electron/               # Electron configuration
+    main.cjs            # Electron main process
+    preload.cjs         # Electron preload script
+ public/                 # Static assets
+    icon.ico            # Application icon
+ App.tsx                 # Main application component
+ types.ts                # TypeScript type definitions
+ utils.ts                # Utility functions
+ dist/                   # Build output (generated)
+ release-packager/       # Packaged app (generated)
 ```
 
 ---
 
-## 🐛 Known Issues & Limitations
+##  Known Issues & Limitations
 
 - Currently supports Windows x64 only (macOS and Linux builds coming soon)
 - Large projects (>1000 tasks) may experience performance degradation
+- CSV export only available in Table view mode
 
 ---
 
-## 🤝 Contributing
+##  Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
 5. Open a Pull Request
 
 ---
 
-## 📝 License
+##  License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 
 ---
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - Built with [React](https://reactjs.org/)
 - Powered by [Electron](https://www.electronjs.org/)
 - Icons by [Lucide](https://lucide.dev/)
+- Styled with [Tailwind CSS](https://tailwindcss.com/)
 
 ---
 
-<div align="center">
+**Made with  by Allen Woo**
 
-**Made with ❤️ for Project Managers**
-
-[Report Bug](https://github.com/allenwoo713/WebBase_Project_Gantt/issues) · [Request Feature](https://github.com/allenwoo713/WebBase_Project_Gantt/issues)
-
-</div>
+[Report Bug](https://github.com/allenwoo713/WebBase_Project_Gantt/issues)  [Request Feature](https://github.com/allenwoo713/WebBase_Project_Gantt/issues)
