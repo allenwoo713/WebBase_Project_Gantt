@@ -77,20 +77,58 @@ const App: React.FC = () => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const headerRef = useRef<HTMLDivElement>(null);
 
-    const columnWidth = useMemo(() => {
-        switch (timeScale) {
-            case TimeScale.Day: return 50;
-            case TimeScale.Month: return 15;
-            case TimeScale.Quarter: return 8;
-            case TimeScale.HalfYear: return 4;
-            case TimeScale.Year: return 2;
-            default: return 50;
+    const handleGanttScroll = (scrollLeft: number) => {
+        if (headerRef.current) {
+            headerRef.current.scrollLeft = scrollLeft;
         }
-    }, [timeScale]);
+    };
 
-    const viewEndDate = useMemo(() => addDays(viewStartDate, viewDays), [viewStartDate, viewDays]);
-    const headerDates = useMemo(() => getDatesRange(viewStartDate, viewEndDate), [viewStartDate, viewEndDate]);
+    const [containerWidth, setContainerWidth] = useState(0);
+    const ganttContainerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!ganttContainerRef.current) return;
+        const ro = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                setContainerWidth(entry.contentRect.width);
+            }
+        });
+        ro.observe(ganttContainerRef.current);
+        return () => ro.disconnect();
+    }, [viewMode]);
+
+    const projectRange = useMemo(() => {
+        if (tasks.length === 0) return { start: new Date(), end: new Date() };
+        const min = new Date(Math.min(...tasks.map(t => t.start.getTime())));
+        const max = new Date(Math.max(...tasks.map(t => t.end.getTime())));
+        return { start: min, end: max };
+    }, [tasks]);
+
+    const { derivedStartDate, derivedColumnWidth, derivedViewDays } = useMemo(() => {
+        const isLongTerm = [TimeScale.Quarter, TimeScale.HalfYear, TimeScale.Year].includes(timeScale);
+
+        if (isLongTerm) {
+            const bufferDays = timeScale === TimeScale.Year ? 30 : 15;
+            const start = addDays(projectRange.start, -bufferDays);
+            const end = addDays(projectRange.end, bufferDays);
+            const days = diffDays(end, start);
+            const width = containerWidth > 0 ? Math.max(containerWidth / days, 1) : 2;
+            return { derivedStartDate: start, derivedColumnWidth: width, derivedViewDays: days };
+        } else {
+            let width = 50;
+            if (timeScale === TimeScale.Month) width = 15;
+
+            const minDays = containerWidth > 0 ? Math.ceil(containerWidth / width) : 30;
+            const days = Math.max(viewDays, minDays);
+
+            return { derivedStartDate: viewStartDate, derivedColumnWidth: width, derivedViewDays: days };
+        }
+    }, [timeScale, projectRange, containerWidth, viewStartDate, viewDays]);
+
+    const viewEndDate = useMemo(() => addDays(derivedStartDate, derivedViewDays), [derivedStartDate, derivedViewDays]);
+    const headerDates = useMemo(() => getDatesRange(derivedStartDate, viewEndDate), [derivedStartDate, viewEndDate]);
 
     // Compute Filtered Tasks
     const filteredTasks = useMemo(() => {
@@ -587,7 +625,7 @@ const App: React.FC = () => {
                 )}
 
                 {(viewMode === ViewMode.Gantt || viewMode === ViewMode.Split) && (
-                    <div className="flex-1 flex flex-col min-w-0 bg-white relative">
+                    <div ref={ganttContainerRef} className="flex-1 flex flex-col min-w-0 bg-white relative">
                         <div className="flex items-center justify-between bg-gray-50 px-4 py-2 border-b border-gray-200 text-xs text-gray-500">
                             <div className="flex items-center gap-4">
                                 <label className="flex items-center cursor-pointer">
@@ -612,8 +650,8 @@ const App: React.FC = () => {
                         </div>
 
                         {/* Dynamic Gantt Header */}
-                        <div className="flex border-b border-gray-200 bg-gray-50 sticky top-0 z-10 h-[50px] overflow-hidden select-none shadow-sm">
-                            <div className="relative h-full" style={{ width: headerDates.length * columnWidth }}>
+                        <div ref={headerRef} className="flex border-b border-gray-200 bg-gray-50 sticky top-0 z-10 h-[50px] overflow-hidden select-none shadow-sm">
+                            <div className="relative h-full" style={{ width: headerDates.length * derivedColumnWidth }}>
                                 {headerDates.map((date, i) => {
                                     const isMonthStart = date.getDate() === 1;
                                     const isWeekStart = date.getDay() === 1;
@@ -639,7 +677,7 @@ const App: React.FC = () => {
                                         <div
                                             key={i}
                                             className={`absolute h-full border-r border-gray-200 flex flex-col justify-end items-center pb-1 text-xs text-gray-500 ${date.getDay() === 0 || date.getDay() === 6 ? 'bg-gray-100/50' : ''}`}
-                                            style={{ left: i * columnWidth, width: columnWidth }}
+                                            style={{ left: i * derivedColumnWidth, width: derivedColumnWidth }}
                                         >
                                             {/* Month Label */}
                                             {(isMonthStart || (i === 0 && timeScale === TimeScale.Day)) && (
@@ -648,10 +686,10 @@ const App: React.FC = () => {
                                                 </div>
                                             )}
 
-                                            {showLabel && columnWidth > 10 && (
+                                            {showLabel && derivedColumnWidth > 10 && (
                                                 <>
                                                     <span className={isToday ? 'font-bold text-blue-600' : ''}>{labelText}</span>
-                                                    {columnWidth > 30 && <span className="text-[9px] opacity-60 uppercase">{subText}</span>}
+                                                    {derivedColumnWidth > 30 && <span className="text-[9px] opacity-60 uppercase">{subText}</span>}
                                                 </>
                                             )}
                                         </div>
@@ -663,9 +701,10 @@ const App: React.FC = () => {
                         <GanttChart
                             tasks={filteredTasks} // Use filtered tasks
                             dependencies={dependencies}
-                            viewStartDate={viewStartDate}
+                            onScroll={handleGanttScroll}
+                            viewStartDate={derivedStartDate}
                             viewEndDate={viewEndDate}
-                            columnWidth={columnWidth}
+                            columnWidth={derivedColumnWidth}
                             showCriticalPath={showCriticalPath}
                             settings={settings}
                             onTaskUpdate={handleTaskUpdate}

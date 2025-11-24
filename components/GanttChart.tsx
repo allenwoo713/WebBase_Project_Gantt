@@ -16,6 +16,7 @@ interface GanttChartProps {
   onDependencyCreate: (sourceId: string, targetId: string) => void;
   onTaskClick: (task: Task) => void;
   criticalTaskIds: Set<string>;
+  onScroll: (scrollLeft: number) => void;
 }
 
 const GanttChart: React.FC<GanttChartProps> = ({
@@ -30,7 +31,8 @@ const GanttChart: React.FC<GanttChartProps> = ({
   onDependencyDelete,
   onDependencyCreate,
   onTaskClick,
-  criticalTaskIds
+  criticalTaskIds,
+  onScroll
 }) => {
   const [draggingTask, setDraggingTask] = useState<{ id: string, startX: number, originalStart: Date, originalEnd: Date, type: 'move' | 'resize-l' | 'resize-r' } | null>(null);
   const [linkingTask, setLinkingTask] = useState<{ id: string, startX: number, startY: number, currentX: number, currentY: number } | null>(null);
@@ -282,6 +284,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
       onMouseMove={handleMouseMove}
       onMouseUp={(e) => handleMouseUp(e)}
       onClick={() => setSelectedDependencyId(null)}
+      onScroll={(e) => onScroll(e.currentTarget.scrollLeft)}
     >
       <svg ref={svgRef} width={totalWidth} height={totalHeight} className="block">
         <defs>
