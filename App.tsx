@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Task, Dependency, ViewMode, TimeScale, DependencyType, ProjectData, Member, ProjectSettings, Holiday, Priority, TaskStatus, FilterState } from './types';
 import GanttChart from './components/GanttChart';
 import TaskList from './components/TaskList';
@@ -44,7 +44,7 @@ const INITIAL_FILTER: FilterState = {
     statuses: [],
     priorities: [],
     ownerIds: [],
-    roles: [], // Added roles
+    roles: [],
     progressMin: '',
     progressMax: '',
     dateRangeStart: { from: '', to: '' },
@@ -67,8 +67,8 @@ const App: React.FC = () => {
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [filterState, setFilterState] = useState<FilterState>(INITIAL_FILTER);
 
-    // Global Error State
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    // Global Notification State
+    const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
     // Modal States
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -153,104 +153,198 @@ const App: React.FC = () => {
         return calculateCriticalPath(tasks, dependencies);
     }, [tasks, dependencies, showCriticalPath]);
 
-    // Error Handler
-    const showError = (msg: string) => {
-        setErrorMessage(msg);
-        setTimeout(() => setErrorMessage(null), 4000);
+    // Notification Handler
+    const showNotification = (msg: string, type: 'success' | 'error' = 'success') => {
+        setNotification({ message: msg, type });
+        setTimeout(() => setNotification(null), 3000);
     };
 
     // Persistence & Migration
+    const handleZoomToFit = (arg?: Task[] | React.MouseEvent) => {
+        const currentTasks = Array.isArray(arg) ? arg : tasks;
+        if (currentTasks.length === 0) return;
+
+        const minStart = new Date(Math.min(...currentTasks.map(t => new Date(t.start).getTime())));
+        const maxEnd = new Date(Math.max(...currentTasks.map(t => new Date(t.end).getTime())));
+
+        // Add larger buffer to fill screen (e.g., 30 days after)
+        const newStart = addDays(minStart, -7);
+        const newEnd = addDays(maxEnd, 45); // Increased buffer from 7 to 45 days
+        const totalDays = diffDays(newEnd, newStart);
+
+        setViewStartDate(newStart);
+        setViewDays(totalDays);
+
+        // Auto-adjust timescale based on duration to fit screen better
+        if (totalDays > 730) {
+            setTimeScale(TimeScale.Year);
+        } else if (totalDays > 365) {
+            setTimeScale(TimeScale.HalfYear);
+        } else if (totalDays > 180) {
+            setTimeScale(TimeScale.Quarter);
+        } else if (totalDays > 60) {
+            setTimeScale(TimeScale.Month);
+        } else {
+            setTimeScale(TimeScale.Day);
+        }
+    };
+
+    const loadProjectData = (jsonString: string) => {
+        try {
+            const parsed: ProjectData = JSON.parse(jsonString);
+
+            // Process Tasks
+            const loadedTasks = (parsed.tasks || []).map(t => ({
+                ...t,
+                start: new Date(t.start),
+                end: new Date(t.end),
+                status: t.status || (t.progress === 100 ? TaskStatus.Done : (t.progress === 0 ? TaskStatus.NotStarted : TaskStatus.Ongoing))
+            }));
+            setTasks(loadedTasks);
+            setDependencies(parsed.dependencies || []);
+            setMembers(parsed.members || []);
+
+            // Process Settings
+            let loadedSettings = { ...INITIAL_SETTINGS, ...(parsed.settings || {}) };
+            if (!Array.isArray(loadedSettings.holidays)) loadedSettings.holidays = [];
+            if (!Array.isArray(loadedSettings.makeUpDays)) loadedSettings.makeUpDays = [];
+
+            // Migration for holidays
+            if (loadedSettings.holidays.length > 0 && typeof loadedSettings.holidays[0] === 'string') {
+                const oldHolidays = loadedSettings.holidays as unknown as string[];
+                loadedSettings.holidays = oldHolidays.map((hStr, idx) => ({
+                    id: `migrated-${idx}`,
+                    name: 'Holiday',
+                    start: hStr,
+                    end: hStr
+                }));
+            }
+            setSettings(loadedSettings);
+
+            // View Adjustment
+            if (loadedTasks.length > 0) {
+                const minDate = new Date(Math.min(...loadedTasks.map(t => t.start.getTime())));
+                setViewStartDate(minDate);
+                handleZoomToFit(loadedTasks);
+            }
+
+            // Persist to localStorage
+            const dataToSave: ProjectData = {
+                tasks: loadedTasks,
+                dependencies: parsed.dependencies || [],
+                members: parsed.members || [],
+                settings: loadedSettings
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave, null, 2));
+
+        } catch (err) {
+            console.error(err);
+            showNotification('Failed to load project data', 'error');
+        }
+    };
+
+    const saveProject = async () => {
+        const data = { tasks, dependencies, members, settings };
+        const jsonString = JSON.stringify(data, null, 2);
+
+        if (window.electronAPI?.isElectron) {
+            let currentPath = settings.projectSavePath;
+            let saveResult;
+
+            if (currentPath) {
+                // Try to save to existing path
+                saveResult = await window.electronAPI.saveProject(currentPath, jsonString);
+            }
+
+            // If no path or save failed with ENOENT (file not found/path invalid), trigger Save As
+            if (!currentPath || (saveResult && !saveResult.success && saveResult.error && saveResult.error.includes('ENOENT'))) {
+                if (currentPath && saveResult?.error) {
+                    // Show the detailed error first
+                    showNotification(`Failed to save: ${saveResult.error}`, 'error');
+                    // Wait a moment for user to see the error
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                }
+
+                // Trigger Save As dialog
+                const saveAsResult = await window.electronAPI.saveProjectAs(jsonString);
+
+                if (saveAsResult.success && saveAsResult.filePath) {
+                    const newSettings = {
+                        ...settings,
+                        projectSavePath: saveAsResult.filePath,
+                        projectFilename: saveAsResult.filePath.split('\\').pop()?.replace('.json', '')
+                    };
+                    setSettings(newSettings);
+
+                    // Update localStorage
+                    const newData = { ...data, settings: newSettings };
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(newData, null, 2));
+
+                    showNotification('Project saved successfully!', 'success');
+                } else if (saveAsResult.canceled) {
+                    // User canceled, do nothing
+                } else {
+                    showNotification(`Failed to save: ${saveAsResult.error}`, 'error');
+                }
+            } else if (saveResult && !saveResult.success) {
+                // Other error
+                showNotification(`Failed to save: ${saveResult.error}`, 'error');
+            } else {
+                // Success (Direct save)
+                showNotification('Project saved successfully!', 'success');
+            }
+        } else {
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${settings.projectFilename || 'project'}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showNotification('Project downloaded!', 'success');
+        }
+    };
+
     useEffect(() => {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
-            try {
-                const parsed: ProjectData = JSON.parse(saved);
-                setTasks((parsed.tasks || []).map(t => ({
-                    ...t,
-                    start: new Date(t.start),
-                    end: new Date(t.end),
-                    status: t.status || (t.progress === 100 ? TaskStatus.Done : (t.progress === 0 ? TaskStatus.NotStarted : TaskStatus.Ongoing))
-                })));
-                setDependencies(parsed.dependencies || []);
-                setMembers(parsed.members || []);
-
-                let loadedSettings = { ...INITIAL_SETTINGS, ...(parsed.settings || {}) };
-                if (!Array.isArray(loadedSettings.holidays)) loadedSettings.holidays = [];
-                if (!Array.isArray(loadedSettings.makeUpDays)) loadedSettings.makeUpDays = [];
-
-                if (loadedSettings.holidays.length > 0 && typeof loadedSettings.holidays[0] === 'string') {
-                    const oldHolidays = loadedSettings.holidays as unknown as string[];
-                    const newHolidays: Holiday[] = oldHolidays.map((hStr, idx) => ({
-                        id: `migrated-${idx}`,
-                        name: 'Holiday',
-                        start: hStr,
-                        end: hStr
-                    }));
-                    loadedSettings.holidays = newHolidays;
-                }
-                setSettings(loadedSettings);
-
-            } catch (e) { console.error("Failed load", e); }
+            loadProjectData(saved);
         }
     }, []);
 
-    const saveProject = () => {
-        const data: ProjectData = { tasks, dependencies, members, settings };
-        const json = JSON.stringify(data, null, 2);
-        localStorage.setItem(STORAGE_KEY, json);
-
-        const filename = settings.projectFilename ? `${settings.projectFilename}.json` : `progantt-${new Date().toISOString().slice(0, 10)}.json`;
-
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+    const handleOpenFileClick = () => {
+        if (window.electronAPI?.isElectron) {
+            openProject();
+        } else {
+            fileInputRef.current?.click();
+        }
     };
 
-    const openProject = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            try {
-                const parsed: ProjectData = JSON.parse(ev.target?.result as string);
-                setTasks((parsed.tasks || []).map(t => ({
-                    ...t,
-                    start: new Date(t.start),
-                    end: new Date(t.end),
-                    status: t.status || (t.progress === 100 ? TaskStatus.Done : (t.progress === 0 ? TaskStatus.NotStarted : TaskStatus.Ongoing))
-                })));
-                setDependencies(parsed.dependencies || []);
-                setMembers(parsed.members || []);
+    const openProject = async (e?: React.ChangeEvent<HTMLInputElement>) => {
+        if (window.electronAPI?.isElectron) {
+            const result = await window.electronAPI.loadProject();
+            if (result.success && result.data && result.filePath) {
+                // We need to inject the filePath into the loaded settings
+                const parsed: ProjectData = JSON.parse(result.data);
+                const updatedSettings = {
+                    ...(parsed.settings || INITIAL_SETTINGS),
+                    projectSavePath: result.filePath,
+                    projectFilename: result.filePath?.split('\\').pop()?.replace('.json', '')
+                };
 
-                let loadedSettings = { ...INITIAL_SETTINGS, ...(parsed.settings || {}) };
-                if (!Array.isArray(loadedSettings.holidays)) loadedSettings.holidays = [];
-                if (!Array.isArray(loadedSettings.makeUpDays)) loadedSettings.makeUpDays = [];
-
-                if (loadedSettings.holidays.length > 0 && typeof loadedSettings.holidays[0] === 'string') {
-                    const oldHolidays = loadedSettings.holidays as unknown as string[];
-                    const newHolidays: Holiday[] = oldHolidays.map((hStr, idx) => ({
-                        id: `migrated-${idx}`,
-                        name: 'Holiday',
-                        start: hStr,
-                        end: hStr
-                    }));
-                    loadedSettings.holidays = newHolidays;
-                }
-                setSettings(loadedSettings);
-
-                if (parsed.tasks && parsed.tasks.length > 0) {
-                    const minDate = new Date(Math.min(...parsed.tasks.map(t => new Date(t.start).getTime())));
-                    setViewStartDate(minDate);
-                }
-            } catch (err) { alert('Invalid JSON file'); }
-        };
-        reader.readAsText(file);
+                // Re-serialize with updated settings to pass to loadProjectData
+                const updatedData = { ...parsed, settings: updatedSettings };
+                loadProjectData(JSON.stringify(updatedData));
+            }
+        } else {
+            const file = e?.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                loadProjectData(ev.target?.result as string);
+            };
+            reader.readAsText(file);
+        }
     };
 
     const handleStep = (direction: 'prev' | 'next') => {
@@ -270,33 +364,7 @@ const App: React.FC = () => {
         setViewStartDate(today);
     };
 
-    const handleZoomToFit = () => {
-        if (tasks.length === 0) return;
 
-        const minStart = new Date(Math.min(...tasks.map(t => t.start.getTime())));
-        const maxEnd = new Date(Math.max(...tasks.map(t => t.end.getTime())));
-
-        // Add buffer (e.g., 1 week before and after)
-        const newStart = addDays(minStart, -7);
-        const newEnd = addDays(maxEnd, 7);
-        const totalDays = diffDays(newEnd, newStart);
-
-        setViewStartDate(newStart);
-        setViewDays(totalDays);
-
-        // Auto-adjust timescale based on duration to fit screen better
-        if (totalDays > 730) {
-            setTimeScale(TimeScale.Year);
-        } else if (totalDays > 365) {
-            setTimeScale(TimeScale.HalfYear);
-        } else if (totalDays > 180) {
-            setTimeScale(TimeScale.Quarter);
-        } else if (totalDays > 60) {
-            setTimeScale(TimeScale.Month);
-        } else {
-            setTimeScale(TimeScale.Day);
-        }
-    };
 
     const handleSettingsSave = (newSettings: ProjectSettings) => {
         setSettings(newSettings);
@@ -397,13 +465,13 @@ const App: React.FC = () => {
 
     return (
         <div className="flex flex-col h-screen bg-white text-slate-900 font-sans overflow-hidden">
-            {/* Global Error Notification */}
-            {errorMessage && (
-                <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-[100] bg-red-600 text-white px-6 py-3 rounded-lg shadow-xl flex items-center animate-bounce">
-                    <AlertTriangle size={20} className="mr-2" />
-                    <span className="font-medium">{errorMessage}</span>
-                    <button onClick={() => setErrorMessage(null)} className="ml-4 opacity-80 hover:opacity-100">
-                        <div className="bg-white/20 rounded-full p-1"><span className="text-xs font-bold">✕</span></div>
+            {/* Global Notification */}
+            {notification && (
+                <div className={`fixed top-16 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-lg shadow-xl flex items-center animate-bounce ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white`}>
+                    {notification.type === 'error' && <AlertTriangle size={20} className="mr-2" />}
+                    <span className="font-medium">{notification.message}</span>
+                    <button onClick={() => setNotification(null)} className="ml-4 opacity-80 hover:opacity-100">
+                        <div className="bg-white/20 rounded-full p-1"><span className="text-xs font-bold">X</span></div>
                     </button>
                 </div>
             )}
@@ -485,7 +553,7 @@ const App: React.FC = () => {
                     <div className="h-6 w-px bg-gray-200 mx-2"></div>
 
                     <input type="file" ref={fileInputRef} onChange={openProject} accept=".json" className="hidden" />
-                    <button onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" title="Open File">
+                    <button onClick={() => handleOpenFileClick()} className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" title="Open File">
                         <FolderOpen size={20} />
                     </button>
 
@@ -513,7 +581,7 @@ const App: React.FC = () => {
                             onTaskUpdate={handleTaskUpdate}
                             onTaskClick={(t) => { setSelectedTask(t); setIsModalOpen(true); }}
                             onTaskMove={handleTaskMove}
-                            onError={showError}
+                            onError={(msg) => showNotification(msg, 'error')}
                         />
                     </div>
                 )}
@@ -622,7 +690,7 @@ const App: React.FC = () => {
                     onSave={handleTaskSave}
                     onDelete={handleTaskDelete}
                     settings={settings}
-                    onError={showError}
+                    onError={(msg) => showNotification(msg, 'error')}
                 />
             )}
 
