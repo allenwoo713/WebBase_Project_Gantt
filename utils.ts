@@ -3,9 +3,9 @@ import { Task, Dependency, DependencyType, ProjectSettings, Holiday, Member, Tas
 // --- Standard Date Math ---
 
 export const addDays = (date: Date, days: number): Date => {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
 };
 
 export const addMonths = (date: Date, months: number): Date => {
@@ -21,33 +21,92 @@ export const addYears = (date: Date, years: number): Date => {
 };
 
 export const formatDate = (date: Date): string => {
-  if (!date || isNaN(date.getTime())) return '';
-  // CRITICAL: Use Local Time methods to prevent timezone offsets (e.g. previous day bugs)
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+    if (!date || isNaN(date.getTime())) return '';
+    // CRITICAL: Use Local Time methods to prevent timezone offsets (e.g. previous day bugs)
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 };
 
 export const getDaysInMonth = (year: number, month: number) => {
-  return new Date(year, month + 1, 0).getDate();
+    return new Date(year, month + 1, 0).getDate();
 };
 
 // Generate a sequence of dates from start to end
 export const getDatesRange = (startDate: Date, endDate: Date): Date[] => {
-  const dates: Date[] = [];
-  let currentDate = new Date(startDate);
-  while (currentDate <= endDate) {
-    dates.push(new Date(currentDate));
-    currentDate = addDays(currentDate, 1);
-  }
-  return dates;
+    const dates: Date[] = [];
+    let currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+        dates.push(new Date(currentDate));
+        currentDate = addDays(currentDate, 1);
+    }
+    return dates;
+};
+
+// Generate a sequence of weeks (Mondays)
+export const getWeeksRange = (startDate: Date, endDate: Date): Date[] => {
+    const dates: Date[] = [];
+    // Adjust start to previous Monday
+    let currentDate = new Date(startDate);
+    const day = currentDate.getDay();
+    const diff = currentDate.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    currentDate.setDate(diff);
+
+    while (currentDate <= endDate) {
+        dates.push(new Date(currentDate));
+        currentDate = addDays(currentDate, 7);
+    }
+    return dates;
+};
+
+// Generate a sequence of months (1st of month)
+export const getMonthsRange = (startDate: Date, endDate: Date): Date[] => {
+    const dates: Date[] = [];
+    let currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+
+    while (currentDate <= endDate) {
+        dates.push(new Date(currentDate));
+        currentDate = addMonths(currentDate, 1);
+    }
+    return dates;
+};
+
+// Generate a sequence of years (1st of Jan)
+export const getYearsRange = (startDate: Date, endDate: Date): Date[] => {
+    const dates: Date[] = [];
+    let currentDate = new Date(startDate.getFullYear(), 0, 1);
+
+    while (currentDate <= endDate) {
+        dates.push(new Date(currentDate));
+        currentDate = addYears(currentDate, 1);
+    }
+    return dates;
 };
 
 export const diffDays = (date1: Date, date2: Date): number => {
-  const oneDay = 24 * 60 * 60 * 1000;
-  return Math.round((date1.getTime() - date2.getTime()) / oneDay);
+    const oneDay = 24 * 60 * 60 * 1000;
+    return Math.round((date1.getTime() - date2.getTime()) / oneDay);
 };
+
+export const diffWeeks = (date1: Date, date2: Date): number => {
+    return diffDays(date1, date2) / 7;
+};
+
+export const diffMonths = (date1: Date, date2: Date): number => {
+    let months = (date1.getFullYear() - date2.getFullYear()) * 12;
+    months -= date2.getMonth();
+    months += date1.getMonth();
+    // Add partial month
+    const daysInMonth = getDaysInMonth(date1.getFullYear(), date1.getMonth());
+    months += (date1.getDate() - date2.getDate()) / daysInMonth; // Approximation for partial
+    return months;
+};
+
+export const diffYears = (date1: Date, date2: Date): number => {
+    return (date1.getFullYear() - date2.getFullYear()) + (diffDays(date1, new Date(date1.getFullYear(), 0, 1)) - diffDays(date2, new Date(date2.getFullYear(), 0, 1))) / 365;
+};
+
 
 // --- Working Days Logic (Business Days) ---
 
@@ -57,7 +116,8 @@ export const isDateInRange = (date: Date, startStr: string, endStr: string) => {
 };
 
 export const getHolidayForDate = (date: Date, holidays: Holiday[]): Holiday | undefined => {
-    return (holidays || []).find(h => isDateInRange(date, h.start, h.end));
+    const d = formatDate(date);
+    return (holidays || []).find(h => h.date === d);
 };
 
 export const isMakeUpDay = (date: Date, makeUpDays: string[] = []) => {
@@ -78,7 +138,7 @@ export const isWorkingDay = (date: Date, settings: ProjectSettings) => {
     // Priority 3: Weekend (Off if includeWeekends is false)
     const day = date.getDay();
     const isWeekend = day === 0 || day === 6;
-    
+
     if (!settings.includeWeekends && isWeekend) {
         return false;
     }
@@ -97,183 +157,179 @@ export const diffProjectDays = (start: Date, end: Date, settings: ProjectSetting
     // Simple mode if weekends included and no holidays defined
     if (settings.includeWeekends && holidays.length === 0 && makeUpDays.length === 0) {
         // Inclusive difference: diffDays gives 0 for same day, so we add 1
-        return diffDays(end, start) + 1;
+        return Math.abs(diffDays(end, start)) + 1;
     }
 
     let count = 0;
-    let current = new Date(start);
-    current.setHours(0,0,0,0);
-    const target = new Date(end);
-    target.setHours(0,0,0,0);
+    let current = new Date(Math.min(start.getTime(), end.getTime()));
+    const target = new Date(Math.max(start.getTime(), end.getTime()));
 
-    // If end is before start, return 0 (or handle as error)
-    if (target < current) return 0;
-
-    // Inclusive Loop: iterate <= target
     while (current <= target) {
         if (isWorkingDay(current, settings)) {
             count++;
         }
         current = addDays(current, 1);
     }
+
     return count;
 };
 
 /**
- * Adds N "Project Days" to a date to find the End Date (INCLUSIVE).
- * If duration is 1, and start is a working day, returns start.
+ * Adds N working days to a date.
  */
-export const addProjectDays = (start: Date, duration: number, settings: ProjectSettings): Date => {
-    const holidays = settings.holidays || [];
-    const makeUpDays = settings.makeUpDays || [];
-
-    if (duration <= 0) return start;
-
-    // Optimized path for simple calendar days
-    if (settings.includeWeekends && holidays.length === 0 && makeUpDays.length === 0) {
-        // Subtract 1 because the start day counts as the first day
-        return addDays(start, duration - 1);
-    }
+export const addProjectDays = (start: Date, days: number, settings: ProjectSettings): Date => {
+    if (days <= 0) return start; // Or handle negative days if needed
 
     let current = new Date(start);
-    let daysFound = 0;
-    let safety = 0;
+    let added = 0;
 
-    // Find 'duration' number of working days. 
-    // The date where we find the last working day is the End Date.
-    while (daysFound < duration && safety < 5000) {
-        if (isWorkingDay(current, settings)) {
-            daysFound++;
-        }
-        
-        if (daysFound === duration) {
-            break;
-        }
-        
+    // If start day itself is working, it counts as day 1? 
+    // Usually "Add 2 days" means 2 *additional* days or duration of 2?
+    // In Gantt context: Start + Duration 1 = Start (End is same day).
+    // So we want to find End date such that diffProjectDays(Start, End) == Duration.
+
+    // If duration is 1, we return start (if it's working) or next working day?
+    // Standard logic: End Date = Start Date + (Duration - 1) working days.
+
+    let remaining = days - 1; // We count the start day if it's working?
+
+    // Check if start is working day. If not, find next working day as actual start?
+    // But usually task start is fixed. If task starts on Sunday (non-working), duration starts counting from Monday.
+
+    while (!isWorkingDay(current, settings)) {
         current = addDays(current, 1);
-        safety++;
     }
+
+    // Now current is the first working day.
+    while (remaining > 0) {
+        current = addDays(current, 1);
+        if (isWorkingDay(current, settings)) {
+            remaining--;
+        }
+    }
+
     return current;
 };
 
-// --- Critical Path ---
-
+// --- Critical Path (Simplified) ---
 export const calculateCriticalPath = (tasks: Task[], dependencies: Dependency[]): Set<string> => {
-  const criticalTasks = new Set<string>();
-  
-  if (tasks.length === 0) return criticalTasks;
+    // 1. Build Graph
+    const adj = new Map<string, string[]>();
+    const taskMap = new Map<string, Task>();
 
-  const projectEndDate = new Date(Math.max(...tasks.map(t => t.end.getTime())));
-  
-  const isTight = (d1: Date, d2: Date) => Math.abs(diffDays(d1, d2)) <= 1; // Adjusted for inclusive logic
+    tasks.forEach(t => {
+        adj.set(t.id, []);
+        taskMap.set(t.id, t);
+    });
 
-  const toVisit: string[] = tasks.filter(t => diffDays(t.end, projectEndDate) === 0).map(t => t.id);
-  const visited = new Set<string>();
+    dependencies.forEach(d => {
+        if (adj.has(d.sourceId) && taskMap.has(d.targetId)) {
+            adj.get(d.sourceId)?.push(d.targetId);
+        }
+    });
 
-  while(toVisit.length > 0) {
-      const currentId = toVisit.pop()!;
-      if(visited.has(currentId)) continue;
-      visited.add(currentId);
-      criticalTasks.add(currentId);
+    // 2. Calculate ES (Earliest Start) and EF (Earliest Finish)
+    // Topological Sort or just relaxation since it's a DAG (usually)
+    // For simplicity, we just use the current dates as they should be scheduled correctly already
+    // Critical path is the sequence where delay affects project end.
 
-      const currentTask = tasks.find(t => t.id === currentId)!;
-      const incoming = dependencies.filter(d => d.targetId === currentId);
-      
-      incoming.forEach(dep => {
-          const sourceTask = tasks.find(t => t.id === dep.sourceId);
-          if(sourceTask) {
-              let driving = false;
-              if (dep.type === DependencyType.FS && isTight(sourceTask.end, currentTask.start)) driving = true;
-              if (dep.type === DependencyType.FF && isTight(sourceTask.end, currentTask.end)) driving = true;
-              
-              if(driving) {
-                  toVisit.push(sourceTask.id);
-              }
-          }
-      });
-  }
+    // Find project end
+    let maxEnd = 0;
+    tasks.forEach(t => {
+        if (t.end.getTime() > maxEnd) maxEnd = t.end.getTime();
+    });
 
-  return criticalTasks;
+    // Backwards pass (LF/LS)
+    // This requires a proper implementation. For now, we can identify tasks with 0 slack.
+    // Slack = LS - ES.
+
+    // A simple heuristic for visualization:
+    // Tasks that end at Project End and their driving predecessors.
+
+    const critical = new Set<string>();
+
+    const findCritical = (taskId: string) => {
+        if (critical.has(taskId)) return;
+        critical.add(taskId);
+
+        // Find dependencies that drive this task (End of pred == Start of this)
+        // Assuming FS dependencies
+        const task = taskMap.get(taskId);
+        if (!task) return;
+
+        const preds = dependencies.filter(d => d.targetId === taskId);
+        preds.forEach(p => {
+            const predTask = taskMap.get(p.sourceId);
+            if (predTask) {
+                // If pred ends exactly when this starts (or close enough), it's driving
+                if (Math.abs(diffDays(task.start, predTask.end)) <= 1) { // 1 day buffer
+                    findCritical(p.sourceId);
+                }
+            }
+        });
+    };
+
+    // Start with tasks ending at maxEnd
+    tasks.filter(t => Math.abs(diffDays(t.end, new Date(maxEnd))) <= 1).forEach(t => {
+        findCritical(t.id);
+    });
+
+    return critical;
 };
 
-// --- Export CSV ---
+export const exportTasksToCSV = (tasks: Task[], members: Member[], dependencies: Dependency[], settings: ProjectSettings) => {
+    // Headers
+    const headers = ['ID', 'Name', 'Start Date', 'End Date', 'Duration', 'Hours', 'Progress', 'Status', 'Priority', 'Owner', 'Role', 'Assignments', 'Predecessors'];
 
-export const exportTasksToCSV = (tasks: Task[], members: Member[], dependencies: Dependency[]) => {
-    const headers = [
-        '#', 
-        'Task Name', 
-        'Priority', 
-        'Status', 
-        'Role', 
-        'Owner', 
-        'Owner Effort', 
-        'Team Members (Effort)', 
-        'Start Date', 
-        'End Date', 
-        'Duration (Days)', 
-        'Progress (%)', 
-        'Predecessors', 
-        'Deliverable', 
-        'Baseline Score', 
-        'Actual Score', 
-        'Description'
-    ];
-    
-    const rows = tasks.map((task, index) => {
-        // Owner
-        const owner = members.find(m => m.id === task.ownerId)?.name || '';
-        
-        // Team Members
-        const teamStr = (task.assignments || []).map(a => {
+    // Rows
+    const rows = tasks.map(task => {
+        const owner = members.find(m => m.id === task.ownerId);
+        const assignNames = (task.assignments || []).map(a => {
             const m = members.find(mem => mem.id === a.memberId);
             return m ? `${m.name} (${a.effort}%)` : '';
-        }).filter(s => s).join('; ');
+        }).filter(Boolean).join('; ');
 
-        // Predecessors (Task Names)
         const preds = dependencies
             .filter(d => d.targetId === task.id)
             .map(d => {
                 const src = tasks.find(t => t.id === d.sourceId);
                 return src ? src.name : '';
             })
-            .filter(s => s)
             .join('; ');
 
-        // Escape function for CSV fields (handles quotes, commas, newlines)
-        const escape = (str: string) => {
-            if (!str) return '';
-            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                return `"${str.replace(/"/g, '""')}"`;
-            }
-            return str;
-        };
+        // Calculate Hours
+        // Formula: ((OwnerEffort + Sum(AssignEffort)) / 100) * Duration * WorkingHours
+        const totalEffort = (task.ownerEffort || 0) + (task.assignments || []).reduce((sum, a) => sum + (a.effort || 0), 0);
+        const workingHours = settings.workingDayHours || 8;
+        const hours = ((totalEffort / 100) * task.duration * workingHours).toFixed(1);
 
         return [
-            index + 1, // # Column
-            escape(task.name),
-            task.priority || 'Medium',
-            task.status || 'Not Started', // Status Column
-            escape(task.role || ''),
-            escape(owner),
-            task.ownerEffort || 100,
-            escape(teamStr),
+            task.id,
+            `"${task.name.replace(/"/g, '""')}"`, // Escape quotes
             formatDate(task.start),
             formatDate(task.end),
             task.duration,
-            task.progress,
-            escape(preds),
-            escape(task.deliverable || ''),
-            escape(task.baselineScore || ''),
-            escape(task.score || ''),
-            escape(task.description || '')
+            hours,
+            `${task.progress}%`,
+            task.status,
+            task.priority,
+            owner ? owner.name : '',
+            task.role || '',
+            `"${assignNames}"`,
+            `"${preds}"`
         ].join(',');
     });
 
-    const csvContent = "\uFEFF" + [headers.join(','), ...rows].join('\n'); // Add BOM for Excel compatibility
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n'); // Add BOM for Excel
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+    // Create download link
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `tasks_export_${formatDate(new Date())}.csv`;
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${settings.projectFilename || 'project'}_export.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(link.href);
+    document.body.removeChild(link);
 };

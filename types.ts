@@ -6,6 +6,7 @@ export enum ViewMode {
 
 export enum TimeScale {
   Day = 'DAY',
+  Week = 'WEEK',
   Month = 'MONTH',
   Quarter = 'QUARTER',
   HalfYear = 'HALF_YEAR',
@@ -27,8 +28,9 @@ export enum Priority {
 
 export enum TaskStatus {
   NotStarted = 'Not Started',
-  Ongoing = 'Ongoing',
-  Done = 'Done'
+  Ongoing = 'In Progress',
+  Done = 'Completed',
+  OnHold = 'On Hold'
 }
 
 export interface Dependency {
@@ -44,7 +46,7 @@ export interface Member {
   role: string;
   email?: string;
   phone?: string;
-  color?: string; // Avatar bg color
+  color: string; // Avatar bg color
 }
 
 export interface TaskAssignment {
@@ -60,8 +62,8 @@ export interface Task {
   end: Date;
   duration: number; // in days
   progress: number; // 0-100
-  priority: Priority;
-  status: TaskStatus; // Added status
+  priority?: Priority;
+  status?: TaskStatus;
 
   // Assignment
   ownerId?: string;
@@ -71,20 +73,15 @@ export interface Task {
   // Metadata
   role?: string;
   deliverable?: string;
-  baselineScore?: string;
-  score?: string;
+  baselineScore?: number;
+  score?: number;
 
-  type: 'task' | 'milestone' | 'phase';
-  parentId?: string;
-  isExpanded?: boolean;
-  color?: string;
+  type: 'task' | 'milestone';
 }
 
 export interface Holiday {
-  id: string;
+  date: string; // YYYY-MM-DD
   name: string;
-  start: string; // YYYY-MM-DD
-  end: string;   // YYYY-MM-DD
 }
 
 export interface ProjectSettings {
@@ -94,24 +91,25 @@ export interface ProjectSettings {
   makeUpDays: string[]; // YYYY-MM-DD - Days that are working days even if they are weekends
   projectFilename?: string;
   projectSavePath?: string;
+  workingDayHours?: number; // Default 8
 }
 
 export interface ProjectData {
   tasks: Task[];
   dependencies: Dependency[];
   members: Member[];
-  settings?: ProjectSettings;
+  settings: ProjectSettings;
 }
 
 export interface FilterState {
   statuses: TaskStatus[];
   priorities: Priority[];
   ownerIds: string[];
-  roles: string[]; // Added roles filter
-  progressMin: number | '';
-  progressMax: number | '';
-  dateRangeStart: { from: string; to: string }; // Task Start must be within this range
-  dateRangeEnd: { from: string; to: string; };
+  roles: string[];
+  progressMin: string;
+  progressMax: string;
+  dateRangeStart: { from: string; to: string };
+  dateRangeEnd: { from: string; to: string };
 }
 
 declare global {

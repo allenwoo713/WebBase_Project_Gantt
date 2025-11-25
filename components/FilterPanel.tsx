@@ -277,14 +277,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                             <input
                                 type="number" min="0" max="100" placeholder="Min"
                                 value={filter.progressMin}
-                                onChange={e => onFilterChange({ ...filter, progressMin: e.target.value ? parseInt(e.target.value) : '' })}
+                                onChange={e => onFilterChange({ ...filter, progressMin: e.target.value })}
                                 className="w-20 p-2 text-sm border border-gray-300 rounded outline-none focus:border-blue-500 bg-white text-gray-900"
                             />
                             <span className="text-gray-400">-</span>
                             <input
                                 type="number" min="0" max="100" placeholder="Max"
                                 value={filter.progressMax}
-                                onChange={e => onFilterChange({ ...filter, progressMax: e.target.value ? parseInt(e.target.value) : '' })}
+                                onChange={e => onFilterChange({ ...filter, progressMax: e.target.value })}
                                 className="w-20 p-2 text-sm border border-gray-300 rounded outline-none focus:border-blue-500 bg-white text-gray-900"
                             />
                         </div>

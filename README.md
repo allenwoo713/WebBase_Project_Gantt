@@ -2,7 +2,7 @@
 
 **A powerful, feature-rich Gantt chart application for project management**
 
-**Version:** 1.0.0-beta | **Author:** Allen Woo | **Released:** 2025-11-25
+**Version:** 1.0.0-gamma | **Author:** Allen Woo | **Released:** 2025-11-25
 
 ---
 
@@ -13,10 +13,11 @@
 - **Task Dependencies**: Create and manage task relationships (Finish-to-Start, Finish-to-Finish)
 - **Critical Path Analysis**: Automatically identify critical tasks that impact project completion
 - **Multiple View Modes**: Switch between Table, Split, and Gantt views
-- **Flexible Time Scales**: Day, Month, Quarter, Half Year, and Year views with auto-fit
+- **Flexible Time Scales**: Day, Week, Month, Quarter, Half Year, and Year views with "1 cell = 1 unit" granularity
 
 ###  Team Collaboration
 - **Member Management**: Add team members with roles, colors, and contact information
+- **Member Export**: Export team member data to CSV format
 - **Task Assignment**: Assign tasks to owners and team members with effort tracking
 - **Role-Based Organization**: Organize tasks by roles (PM, Developer, Designer, etc.)
 
@@ -26,6 +27,7 @@
 - **Task Status**: Track tasks through Not Started, Ongoing, and Done states
 - **Advanced Filtering**: Filter by status, priority, owner, role, progress, and date ranges
 - **Working Day Calculation**: Configure holidays, make-up days, and weekend settings
+- **Working Hours Calculation**: Automatically calculate task hours based on effort and duration
 
 ###  Data Management
 - **Auto-Save**: Automatic saving to browser localStorage
@@ -105,6 +107,7 @@ For detailed packaging instructions, see [PACKAGING_GUIDELINE.md](PACKAGING_GUID
 2. Add, edit, or remove team members
 3. Assign colors and roles to members
 4. Assign members to tasks in the task modal
+5. Export member list to CSV for external use
 
 ### Filtering Tasks
 
@@ -132,23 +135,28 @@ For detailed packaging instructions, see [PACKAGING_GUIDELINE.md](PACKAGING_GUID
 
 ```
 WebBase_Project_Gantt/
- components/              # React components
-    GanttChart.tsx      # Main Gantt chart component
-    TaskList.tsx        # Task list view
-    TaskModal.tsx       # Task editing modal
-    MemberManager.tsx   # Team member management
-    SettingsModal.tsx   # Project settings
-    FilterPanel.tsx     # Task filtering
- electron/               # Electron configuration
-    main.cjs            # Electron main process
-    preload.cjs         # Electron preload script
- public/                 # Static assets
-    icon.ico            # Application icon
- App.tsx                 # Main application component
- types.ts                # TypeScript type definitions
- utils.ts                # Utility functions
- dist/                   # Build output (generated)
- release-packager/       # Packaged app (generated)
+├── components/              # React components
+│   ├── GanttChart.tsx      # Main Gantt chart component
+│   ├── TaskList.tsx        # Task list view
+│   ├── TaskModal.tsx       # Task editing modal
+│   ├── MemberManager.tsx   # Team member management
+│   ├── SettingsModal.tsx   # Project settings
+│   └── FilterPanel.tsx     # Task filtering
+├── docs/                   # Documentation
+│   ├── API.md              # API reference
+│   ├── ARCHITECTURE.md     # Architecture overview
+│   ├── DESIGN.md           # Design details
+│   └── FEATURES.md         # Feature list
+├── electron/               # Electron configuration
+│   ├── main.cjs            # Electron main process
+│   └── preload.cjs         # Electron preload script
+├── public/                 # Static assets
+│   └── icon.ico            # Application icon
+├── App.tsx                 # Main application component
+├── types.ts                # TypeScript type definitions
+├── utils.ts                # Utility functions
+├── dist/                   # Build output (generated)
+└── release-packager/       # Packaged app (generated)
 ```
 
 ---

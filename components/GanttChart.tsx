@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
-import { Task, Dependency, ROW_HEIGHT, ProjectSettings, Priority } from '../types';
-import { addDays, diffDays, getDatesRange, getHolidayForDate, isMakeUpDay } from '../utils';
+import { Task, Dependency, ROW_HEIGHT, ProjectSettings, Priority, TimeScale } from '../types';
+import { addDays, diffDays, diffWeeks, diffMonths, diffYears, getDatesRange, getWeeksRange, getMonthsRange, getYearsRange, getHolidayForDate, isMakeUpDay } from '../utils';
 import { Trash2 } from 'lucide-react';
 
 interface GanttChartProps {
@@ -11,6 +11,7 @@ interface GanttChartProps {
   columnWidth: number;
   showCriticalPath: boolean;
   settings: ProjectSettings;
+  timeScale: TimeScale;
   onTaskUpdate: (task: Task) => void;
   onDependencyDelete: (id: string) => void;
   onDependencyCreate: (sourceId: string, targetId: string) => void;
@@ -27,6 +28,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
   columnWidth,
   showCriticalPath,
   settings,
+  timeScale,
   onTaskUpdate,
   onDependencyDelete,
   onDependencyCreate,
@@ -44,7 +46,18 @@ const GanttChart: React.FC<GanttChartProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const dates = useMemo(() => getDatesRange(viewStartDate, viewEndDate), [viewStartDate, viewEndDate]);
+  const dates = useMemo(() => {
+    switch (timeScale) {
+      case TimeScale.Day: return getDatesRange(viewStartDate, viewEndDate);
+      case TimeScale.Week: return getWeeksRange(viewStartDate, viewEndDate);
+      case TimeScale.Month:
+      case TimeScale.Quarter:
+      case TimeScale.HalfYear: return getMonthsRange(viewStartDate, viewEndDate);
+      case TimeScale.Year: return getYearsRange(viewStartDate, viewEndDate);
+      default: return getDatesRange(viewStartDate, viewEndDate);
+    }
+  }, [viewStartDate, viewEndDate, timeScale]);
+
   const totalWidth = dates.length * columnWidth;
   const totalHeight = tasks.length * ROW_HEIGHT + 40;
 
@@ -54,9 +67,40 @@ const GanttChart: React.FC<GanttChartProps> = ({
     return () => window.removeEventListener('click', handleClick);
   }, []);
 
-  const getTaskX = (date: Date) => diffDays(date, viewStartDate) * columnWidth;
-  // Inclusive Width: (End - Start) + 1 Day
-  const getTaskWidth = (start: Date, end: Date) => Math.max((diffDays(end, start) + 1) * columnWidth, columnWidth / 4);
+  const getTaskX = (date: Date) => {
+    switch (timeScale) {
+      case TimeScale.Day: return diffDays(date, viewStartDate) * columnWidth;
+      case TimeScale.Week: return diffWeeks(date, viewStartDate) * columnWidth;
+      case TimeScale.Month:
+      case TimeScale.Quarter:
+      case TimeScale.HalfYear: return diffMonths(date, viewStartDate) * columnWidth;
+      case TimeScale.Year: return diffYears(date, viewStartDate) * columnWidth;
+      default: return diffDays(date, viewStartDate) * columnWidth;
+    }
+  };
+
+  const getTaskWidth = (start: Date, end: Date) => {
+    let width = 0;
+    switch (timeScale) {
+      case TimeScale.Day:
+        width = (diffDays(end, start) + 1) * columnWidth;
+        break;
+      case TimeScale.Week:
+        width = (diffWeeks(end, start) + (1 / 7)) * columnWidth;
+        break;
+      case TimeScale.Month:
+      case TimeScale.Quarter:
+      case TimeScale.HalfYear:
+        // Add small buffer for visibility if start==end
+        width = Math.max(diffMonths(end, start), 1 / 30) * columnWidth;
+        break;
+      case TimeScale.Year:
+        width = Math.max(diffYears(end, start), 1 / 365) * columnWidth;
+        break;
+      default: width = (diffDays(end, start) + 1) * columnWidth;
+    }
+    return Math.max(width, 2);
+  };
 
   const handleMouseDown = (e: React.MouseEvent, task: Task, action: 'move' | 'resize-l' | 'resize-r' | 'link') => {
     if (e.button !== 0) return;
@@ -82,7 +126,17 @@ const GanttChart: React.FC<GanttChartProps> = ({
   const handleMouseMove = (e: React.MouseEvent) => {
     if (draggingTask) {
       const dx = e.clientX - draggingTask.startX;
-      const daysDiff = Math.round(dx / columnWidth);
+      // Calculate daysDiff based on timeScale
+      let daysDiff = 0;
+      switch (timeScale) {
+        case TimeScale.Day: daysDiff = Math.round(dx / columnWidth); break;
+        case TimeScale.Week: daysDiff = Math.round((dx / columnWidth) * 7); break;
+        case TimeScale.Month:
+        case TimeScale.Quarter:
+        case TimeScale.HalfYear: daysDiff = Math.round((dx / columnWidth) * 30); break; // Approx
+        case TimeScale.Year: daysDiff = Math.round((dx / columnWidth) * 365); break; // Approx
+        default: daysDiff = Math.round(dx / columnWidth);
+      }
 
       const taskIndex = tasks.findIndex(t => t.id === draggingTask.id);
       if (taskIndex === -1) return;
@@ -151,76 +205,49 @@ const GanttChart: React.FC<GanttChartProps> = ({
       case Priority.High: return "#f97316"; // Orange
       case Priority.Medium: return "#3b82f6"; // Blue (Default)
       case Priority.Low: return "#10b981"; // Green
-      default: return task.color || "#3b82f6";
+      default: return "#3b82f6";
     }
   };
 
   const renderGrid = () => (
     <g className="grid-lines select-none pointer-events-none">
       {dates.map((d, i) => {
-        const dayOfWeek = d.getDay();
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-        const isMonthStart = d.getDate() === 1;
-
-        const holiday = getHolidayForDate(d, settings.holidays);
-        const isMakeUp = isMakeUpDay(d, settings.makeUpDays);
-
         let bgFill = "transparent";
 
-        if (isMakeUp) {
-          bgFill = "rgba(220, 252, 231, 0.4)"; // Light Green for Make-up days
-        } else if (holiday) {
-          bgFill = "rgba(254, 243, 199, 0.4)"; // Very subtle Warm/Grayish for Holidays
-        } else if (isWeekend && !settings.includeWeekends) {
-          bgFill = "rgba(241, 245, 249, 0.6)"; // Light Gray for Weekends
-        }
+        if (timeScale === TimeScale.Day) {
+          const dayOfWeek = d.getDay();
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+          const holiday = getHolidayForDate(d, settings.holidays);
+          const isMakeUp = isMakeUpDay(d, settings.makeUpDays);
 
-        if (columnWidth < 20 && !isMonthStart) return null;
+          if (isMakeUp) {
+            bgFill = "rgba(220, 252, 231, 0.4)";
+          } else if (holiday) {
+            bgFill = "rgba(254, 243, 199, 0.4)";
+          } else if (isWeekend && !settings.includeWeekends) {
+            bgFill = "rgba(241, 245, 249, 0.6)";
+          }
+        } else {
+          // For other views, maybe alternate slightly to distinguish columns?
+          if (i % 2 === 0) bgFill = "rgba(248, 250, 252, 0.3)";
+        }
 
         return (
           <React.Fragment key={i}>
-            {/* Background Fill */}
-            {bgFill !== "transparent" && (
-              <rect x={i * columnWidth} y={0} width={columnWidth} height={totalHeight} fill={bgFill} />
-            )}
+            <rect x={i * columnWidth} y={0} width={columnWidth} height={totalHeight} fill={bgFill} />
 
-            {/* Holiday Label */}
-            {holiday && !isMakeUp && columnWidth > 30 && (
-              <text
-                x={i * columnWidth + columnWidth / 2}
-                y={20}
-                className="text-[9px] fill-amber-700 font-medium uppercase opacity-50"
-                transform={`rotate(90, ${i * columnWidth + columnWidth / 2}, 20)`}
-                textAnchor="start"
-              >
-                {holiday.name}
-              </text>
-            )}
-
-            {/* MakeUp Label */}
-            {isMakeUp && columnWidth > 30 && (
-              <text
-                x={i * columnWidth + columnWidth / 2}
-                y={20}
-                className="text-[9px] fill-green-700 font-medium uppercase opacity-50"
-                transform={`rotate(90, ${i * columnWidth + columnWidth / 2}, 20)`}
-                textAnchor="start"
-              >
-                Work
-              </text>
-            )}
-
+            {/* Grid Line */}
             <line
               x1={i * columnWidth}
               y1={0}
               x2={i * columnWidth}
               y2={totalHeight}
-              stroke={isMonthStart ? "#cbd5e1" : "#e2e8f0"}
+              stroke="#e2e8f0"
               strokeWidth={1}
-              strokeDasharray={!isMonthStart && (isWeekend || holiday) ? "4 2" : ""}
             />
 
-            {diffDays(d, new Date()) === 0 && (
+            {/* Current Time Indicator (Approximate for non-Day views) */}
+            {timeScale === TimeScale.Day && diffDays(d, new Date()) === 0 && (
               <rect x={i * columnWidth} y={0} width={columnWidth} height={totalHeight} fill="rgba(59, 130, 246, 0.1)" />
             )}
           </React.Fragment>
@@ -237,31 +264,15 @@ const GanttChart: React.FC<GanttChartProps> = ({
       const target = tasks.find(t => t.id === dep.targetId);
       if (!source || !target) return null;
 
-      const sourceIdx = tasks.findIndex(t => t.id === dep.sourceId);
-      const targetIdx = tasks.findIndex(t => t.id === dep.targetId);
-
-      // Adjusted anchor points for inclusive width
-      const x1 = getTaskX(source.end) + columnWidth;
-      const y1 = sourceIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
+      const x1 = getTaskX(source.start) + getTaskWidth(source.start, source.end);
+      const y1 = tasks.indexOf(source) * ROW_HEIGHT + ROW_HEIGHT / 2;
       const x2 = getTaskX(target.start);
-      const y2 = targetIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
+      const y2 = tasks.indexOf(target) * ROW_HEIGHT + ROW_HEIGHT / 2;
 
-      let color = "#94a3b8";
-      let width = 1.5;
-      const isSelected = selectedDependencyId === dep.id;
-
-      if (showCriticalPath) {
-        if (criticalTaskIds.has(source.id) && criticalTaskIds.has(target.id)) {
-          color = "#ef4444";
-          width = 2.5;
-        }
-      }
-      if (isSelected) {
-        color = "#3b82f6";
-        width = 2.5;
-      }
-
+      // Path logic
       const path = `M ${x1} ${y1} L ${x1 + 10} ${y1} L ${x1 + 10} ${y2} L ${x2} ${y2}`;
+      const color = selectedDependencyId === dep.id ? "#2563eb" : (showCriticalPath ? "#94a3b8" : "#cbd5e1");
+      const width = selectedDependencyId === dep.id ? 2 : 1.5;
 
       return (
         <g
@@ -306,35 +317,28 @@ const GanttChart: React.FC<GanttChartProps> = ({
           const barColor = getTaskColor(task, isCritical);
 
           return (
-            <g key={task.id}
+            <g
+              key={task.id}
+              className="cursor-pointer"
+              onMouseDown={(e) => handleMouseDown(e, task, 'move')}
               onMouseEnter={() => setHoveredTask(task.id)}
               onMouseLeave={() => setHoveredTask(null)}
-              onDoubleClick={() => onTaskClick(task)}
             >
-              {/* Link Handle */}
-              <circle
-                cx={x + w} cy={y + h / 2} r={4} fill="#cbd5e1"
-                className="hover:fill-blue-600 cursor-crosshair opacity-0 group-hover:opacity-100 transition-opacity"
-                onMouseDown={(e) => handleMouseDown(e, task, 'link')}
-              />
-
               {/* Task Bar */}
               <rect
-                x={x} y={y} width={w} height={h} rx={4} fill={barColor} filter="url(#shadow)"
-                className="cursor-move transition-colors"
-                onDoubleClick={(e) => { e.stopPropagation(); onTaskClick(task); }}
-                onMouseDown={(e) => handleMouseDown(e, task, 'move')}
-                onMouseUp={(e) => handleMouseUp(e, task.id)}
+                x={x} y={y} width={w} height={h} rx={4}
+                fill={barColor}
+                filter={hoveredTask === task.id ? "url(#shadow)" : ""}
+                className="transition-all duration-200"
               />
 
-              {/* Resize Handle Left */}
+              {/* Drag Handles */}
               <rect
                 x={x} y={y} width={6} height={h}
                 fill="transparent"
                 className="cursor-ew-resize"
                 onMouseDown={(e) => handleMouseDown(e, task, 'resize-l')}
               />
-              {/* Resize Handle Right */}
               <rect
                 x={x + w - 6} y={y} width={6} height={h}
                 fill="transparent"

@@ -39,15 +39,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
 
     const handleAddHoliday = () => {
         if (newHolidayName && newHolidayStart && newHolidayEnd) {
-            const newHol: Holiday = {
-                id: Math.random().toString(36).substr(2, 9),
-                name: newHolidayName,
-                start: newHolidayStart,
-                end: newHolidayEnd
-            };
+            const start = new Date(newHolidayStart);
+            const end = new Date(newHolidayEnd);
+            const newHolidays: Holiday[] = [];
+
+            // Loop from start to end
+            // Create a new date object to avoid mutating 'start' if we used it directly in loop condition (though here we use 'd')
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const dateStr = d.toISOString().split('T')[0];
+                // Check if already exists
+                if (!localSettings.holidays.some(h => h.date === dateStr)) {
+                    newHolidays.push({
+                        date: dateStr,
+                        name: newHolidayName
+                    });
+                }
+            }
+
             setLocalSettings(prev => ({
                 ...prev,
-                holidays: [...(prev.holidays || []), newHol].sort((a, b) => a.start.localeCompare(b.start))
+                holidays: [...(prev.holidays || []), ...newHolidays].sort((a, b) => a.date.localeCompare(b.date))
             }));
             setNewHolidayName('');
             setNewHolidayStart('');
@@ -55,10 +66,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
         }
     };
 
-    const handleRemoveHoliday = (id: string) => {
+    const handleRemoveHoliday = (date: string) => {
         setLocalSettings(prev => ({
             ...prev,
-            holidays: (prev.holidays || []).filter(h => h.id !== id)
+            holidays: (prev.holidays || []).filter(h => h.date !== date)
         }));
     };
 
@@ -170,6 +181,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                                 <span className="ml-3 text-sm text-gray-700"><strong>Working Days</strong> (Exclude Sat/Sun)</span>
                             </label>
                         </div>
+                        <div>
+                            <label className="text-xs font-medium text-gray-500 block mb-1">Working Day Hours</label>
+                            <input
+                                type="number"
+                                min="1" max="24"
+                                value={localSettings.workingDayHours || 8}
+                                onChange={e => setLocalSettings({ ...localSettings, workingDayHours: Number(e.target.value) })}
+                                className={inputClass}
+                            />
+                        </div>
                     </div>
 
                     {/* Section: Holidays */}
@@ -226,12 +247,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                                 <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-md bg-white">
                                     {(localSettings.holidays || []).length === 0 && <div className="p-4 text-center text-xs text-gray-400">No holidays configured</div>}
                                     {(localSettings.holidays || []).map(h => (
-                                        <div key={h.id} className="flex items-center justify-between p-2 border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                                        <div key={h.date} className="flex items-center justify-between p-2 border-b border-gray-100 last:border-0 hover:bg-gray-50">
                                             <div>
                                                 <div className="text-sm font-medium text-gray-800">{h.name}</div>
-                                                <div className="text-xs text-gray-500">{h.start} to {h.end}</div>
+                                                <div className="text-xs text-gray-500">{h.date}</div>
                                             </div>
-                                            <button onClick={() => handleRemoveHoliday(h.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={14} /></button>
+                                            <button onClick={() => handleRemoveHoliday(h.date)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={14} /></button>
                                         </div>
                                     ))}
                                 </div>
