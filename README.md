@@ -2,7 +2,7 @@
 
 **A powerful, feature-rich Gantt chart application for project management**
 
-**Version:** 1.0.0-gamma | **Author:** Allen Woo | **Released:** 2025-11-25
+**Version:** 1.0.0-gamma | **Author:** Allen Woo | **Released:** 2025-11-27
 
 ---
 
@@ -135,28 +135,24 @@ For detailed packaging instructions, see [PACKAGING_GUIDELINE.md](PACKAGING_GUID
 
 ```
 WebBase_Project_Gantt/
-├── components/              # React components
-│   ├── GanttChart.tsx      # Main Gantt chart component
-│   ├── TaskList.tsx        # Task list view
-│   ├── TaskModal.tsx       # Task editing modal
-│   ├── MemberManager.tsx   # Team member management
-│   ├── SettingsModal.tsx   # Project settings
-│   └── FilterPanel.tsx     # Task filtering
-├── docs/                   # Documentation
-│   ├── API.md              # API reference
-│   ├── ARCHITECTURE.md     # Architecture overview
-│   ├── DESIGN.md           # Design details
-│   └── FEATURES.md         # Feature list
-├── electron/               # Electron configuration
-│   ├── main.cjs            # Electron main process
-│   └── preload.cjs         # Electron preload script
-├── public/                 # Static assets
-│   └── icon.ico            # Application icon
-├── App.tsx                 # Main application component
-├── types.ts                # TypeScript type definitions
-├── utils.ts                # Utility functions
-├── dist/                   # Build output (generated)
-└── release-packager/       # Packaged app (generated)
+├── src/                          # Source code
+│   ├── components/               # React components
+│   │   ├── GanttChart.tsx
+│   │   ├── TaskList.tsx
+│   │   └── ...
+│   ├── App.tsx                   # Main application component
+│   ├── index.tsx                 # Entry point
+│   ├── types.ts                  # Type definitions
+│   └── utils.ts                  # Utility functions
+├── docs/                         # Documentation & Reports
+├── public/                       # Static assets
+│   └── assets/                   # Icons and images
+├── electron/                     # Electron configuration
+│   ├── main.cjs
+│   └── preload.cjs
+├── dist/                         # Build output (generated)
+├── release-packager/             # Packaged app (generated)
+└── .agent/                       # AI workflows & rules
 ```
 
 ---

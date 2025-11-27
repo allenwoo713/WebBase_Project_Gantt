@@ -26,14 +26,14 @@ Get-Date -Format "yyyy-MM-dd"
 #### Update Version Information in Files
 
 1. **package.json**:
-   - Update `version` field (e.g., "1.0.0-beta")
+   - Update `version` field (e.g., "1.0.0-gamma")
    - Verify `author` field is set
 
-2. **App.tsx** (lines 16-18):
+2. **src/App.tsx** (lines 16-18):
    ```typescript
-   const APP_VERSION = '1.0.0-beta';  // Match package.json version
+   const APP_VERSION = '1.0.0-gamma';  // Match package.json version
    const APP_AUTHOR = 'Allen Woo';
-   const APP_RELEASE_DATE = '2025-11-25';  // Use current system date from above
+   const APP_RELEASE_DATE = '2025-11-27';  // Use current system date from above
    ```
 
 **⚠️ IMPORTANT**: Always use the actual system date from the command above, not a guessed date!
@@ -52,24 +52,34 @@ This creates the `dist` directory containing the production-ready frontend code.
 
 Use `electron-packager` with comprehensive ignore rules to exclude source code, development files, and temporary directories. This ensures:
 - ✅ **Clean package**: Only production files (dist/, electron/, package.json)
-- ✅ **Small size**: App folder ~0.43 MB (vs 10+ MB with source code)
+- ✅ **Small size**: App folder size optimized (excluding source code)
 - ✅ **Secure**: No source code exposure
 - ✅ **Professional**: Production-ready distribution
 
-**Command:**
+**Get absolute icon path (PowerShell):**
+
+```powershell
+$iconPath = (Resolve-Path "public\assets\icon.ico").Path
+Write-Output "Icon path: $iconPath"
+# Output: D:\python_workspace\Claude_Project\WebBase_Project_Gantt\public\assets\icon.ico
+```
+
+**Command (use absolute path for icon):**
 
 ```bash
-npx electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite --icon="public/icon.ico" --ignore="^/src$" --ignore="^/node_modules$" --ignore="^/.git" --ignore="^/.vscode" --ignore="^/release$" --ignore="^/release-packager$" --ignore="^/public$" --ignore="^/.cache$" --ignore="^/.agent$" --ignore="^/components$" --ignore="^/docs$" --ignore="\.tsx$" --ignore="\.ts$" --ignore="^/.*\.md$" --ignore="vite\.config" --ignore="tsconfig" --ignore="^/index\.html$" --ignore="^/index\.tsx$" --ignore="^/metadata\.json$" --ignore="^/changelog"
+npx electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite --icon="D:\python_workspace\Claude_Project\WebBase_Project_Gantt\public\assets\icon.ico" --ignore="^/src$" --ignore="^/node_modules$" --ignore="^/.git" --ignore="^/.vscode" --ignore="^/release$" --ignore="^/release-packager$" --ignore="^/public$" --ignore="^/.cache$" --ignore="^/.agent$" --ignore="^/docs$" --ignore="\.tsx$" --ignore="\.ts$" --ignore="^/.*\.md$" --ignore="vite\.config" --ignore="tsconfig" --ignore="^/index\.html$" --ignore="^/metadata\.json$"
 ```
+
+**⚠️ IMPORTANT**: Replace the icon path with your actual absolute path from the command above!
 
 **Key Flags Explanation:**
 
 - `--platform=win32 --arch=x64`: Target Windows 64-bit
 - `--out=release-packager`: Output directory
 - `--overwrite`: Replace existing builds
-- `--icon="public/icon.ico"`: Application icon
+- `--icon="..."`: Application icon (use absolute path as shown above)
 - `--ignore="..."`: Critical for optimization. We exclude:
-  - **Source directories**: `components/`, `docs/`, `src/`
+  - **Source directories**: `src/`, `docs/`
   - **Source files**: All `.tsx` and `.ts` files
   - **Config files**: `tsconfig.json`, `vite.config.ts`
   - **Documentation**: All `.md` files
@@ -87,7 +97,8 @@ resources/app/
 ├── dist/              # Compiled frontend code
 │   ├── index.html
 │   └── assets/
-│       └── index-xxx.js
+│       ├── index-xxx.js
+│       └── icon.ico
 ├── electron/          # Electron main process
 │   ├── main.cjs
 │   └── preload.cjs
@@ -95,10 +106,10 @@ resources/app/
 ```
 
 **What's NOT included** (and shouldn't be):
-- ❌ Source code files (App.tsx, types.ts, utils.ts, etc.)
-- ❌ Component source files (components/ directory)
-- ❌ Configuration files (tsconfig.json, vite.config.ts)
-- ❌ Documentation files (README.md, PACKAGING_GUIDELINE.md)
+- ❌ Source code files (src/App.tsx, src/types.ts, src/utils.ts, etc.)
+- ❌ Component source files (src/components/ directory)
+- ❌ Configuration files (tsconfig.json, vite.config.ts, index.html)
+- ❌ Documentation files (README.md, docs/)
 - ❌ Temporary directories (.cache/, .agent/)
 
 ## Verification
@@ -118,7 +129,7 @@ Get-ChildItem "release-packager\ProGantt-win32-x64\resources\app" -Name
 $size = (Get-ChildItem "release-packager\ProGantt-win32-x64\resources\app" -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
 "App folder size: $([math]::Round($size, 2)) MB"
 
-# Expected: ~0.43 MB
+# Note: Size should be around 0.4 - 0.5 MB
 ```
 
 ## Output
@@ -133,7 +144,7 @@ release-packager/ProGantt-win32-x64/ProGantt.exe
 For convenience, you can combine both steps:
 
 ```bash
-npm run build && npx electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite --icon="public/icon.ico" --ignore="^/src$" --ignore="^/node_modules$" --ignore="^/.git" --ignore="^/.vscode" --ignore="^/release$" --ignore="^/release-packager$" --ignore="^/public$" --ignore="^/.cache$" --ignore="^/.agent$" --ignore="^/components$" --ignore="^/docs$" --ignore="\.tsx$" --ignore="\.ts$" --ignore="^/.*\.md$" --ignore="vite\.config" --ignore="tsconfig" --ignore="^/index\.html$" --ignore="^/index\.tsx$" --ignore="^/metadata\.json$" --ignore="^/changelog"
+npm run build && npx electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite --icon="D:\YOUR\ABSOLUTE\PATH\TO\public\assets\icon.ico" --ignore="^/src$" --ignore="^/node_modules$" --ignore="^/.git" --ignore="^/.vscode" --ignore="^/release$" --ignore="^/release-packager$" --ignore="^/public$" --ignore="^/.cache$" --ignore="^/.agent$" --ignore="^/docs$" --ignore="\.tsx$" --ignore="\.ts$" --ignore="^/.*\.md$" --ignore="vite\.config" --ignore="tsconfig" --ignore="^/index\.html$" --ignore="^/metadata\.json$"
 ```
 
 ## Troubleshooting
@@ -150,8 +161,17 @@ If you see source files (`.tsx`, `.ts`) in `resources/app/`, ensure:
 - Verify only `dist/`, `electron/`, and `package.json` are in `resources/app/`
 - Check that `node_modules/` is excluded
 - Ensure all source files are excluded
+- Note: Large assets in `public/` will be copied to `dist/` and increase package size (e.g., documentation images should be in `docs/`)
 
 ### Icon not showing
 
-- Verify `public/icon.ico` exists
-- Use absolute path if relative path fails: `--icon="C:\path\to\icon.ico"`
+- Verify `public/assets/icon.ico` exists
+- Use absolute path if relative path fails: `--icon="C:\path\to\public\assets\icon.ico"`
+
+## Notes on Project Refactoring (2025-11-27)
+
+The project structure was refactored to follow modern frontend best practices:
+- Source code moved to `src/` directory
+- Assets moved to `public/assets/`
+- Documentation organized in `docs/` with `docs/reports/` subdirectory
+- All packaging commands updated to reflect new structure

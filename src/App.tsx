@@ -539,7 +539,7 @@ const App: React.FC = () => {
             <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shadow-sm z-20 relative">
                 <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-2 mr-4">
-                        <img src="./icon.ico" alt="ProGantt" className="w-8 h-8 rounded-lg" />
+                        <img src="./assets/icon.ico" alt="ProGantt" className="w-8 h-8 rounded-lg" />
                         <h1 className="text-lg font-bold text-slate-800 hidden md:block">ProGantt</h1>
                     </div>
 
@@ -838,7 +838,7 @@ const App: React.FC = () => {
             {isAboutOpen && (
                 <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center">
-                        <img src="./icon.ico" alt="ProGantt" className="w-16 h-16 mx-auto mb-4 rounded-xl shadow-md" />
+                        <img src="./assets/icon.ico" alt="ProGantt" className="w-16 h-16 mx-auto mb-4 rounded-xl shadow-md" />
                         <h2 className="text-2xl font-bold text-slate-800 mb-1">ProGantt</h2>
                         <p className="text-sm text-gray-500 mb-4">Version {APP_VERSION}</p>
 

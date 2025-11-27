@@ -9,7 +9,7 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
-        icon: path.join(__dirname, isDev ? '../public/icon.png' : '../dist/icon.png'),
+        icon: path.join(__dirname, isDev ? '../public/assets/icon.ico' : '../dist/assets/icon.ico'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.cjs'),
             nodeIntegration: false,
