@@ -446,3 +446,28 @@ export const getTaskWidth = (start: Date, end: Date, timeScale: TimeScale, colum
     }
     return Math.max(width, 2);
 };
+
+export const calculateColumnWidth = (timeScale: TimeScale, viewDays: number, containerWidth: number): number => {
+    const availableWidth = containerWidth > 0 ? containerWidth - 40 : 1000;
+
+    switch (timeScale) {
+        case TimeScale.Year:
+            // Unit: Year.
+            if (viewDays > 0) return Math.max(50, (availableWidth * 365) / viewDays);
+            return 100;
+        case TimeScale.HalfYear:
+        case TimeScale.Quarter:
+        case TimeScale.Month:
+            // Unit: Month.
+            if (viewDays > 0) return Math.max(30, (availableWidth * 30) / viewDays);
+            return 60;
+        case TimeScale.Week:
+            // Unit: Week.
+            if (viewDays > 0) return Math.max(30, (availableWidth * 7) / viewDays);
+            return 50;
+        case TimeScale.Day:
+            if (viewDays > 0) return Math.max(20, availableWidth / viewDays);
+            return 40;
+        default: return 40;
+    }
+};

@@ -1,4 +1,4 @@
-import { calculateCriticalPath, diffProjectDays, addProjectDays, getTaskX, getTaskWidth } from './utils';
+import { calculateCriticalPath, diffProjectDays, addProjectDays, getTaskX, getTaskWidth, calculateColumnWidth } from './utils';
 import { Task, Dependency, ProjectSettings, DependencyType, TaskStatus, Priority, TimeScale } from './types';
 
 // Mock Data Helpers
@@ -167,6 +167,51 @@ async function runTests() {
         const end = new Date(2024, 0, 3); // 3 days
         const w = getTaskWidth(start, end, TimeScale.Day, columnWidth);
         assert(w === 3 * columnWidth, 'Day View: Width correct');
+    }
+
+    console.log('\nRunning Column Width Calculation Tests...');
+    // Test 11: Calculate Column Width (Day View)
+    {
+        const containerWidth = 1040; // 1000 available
+        const viewDays = 50;
+        const w = calculateColumnWidth(TimeScale.Day, viewDays, containerWidth);
+        // 1000 / 50 = 20
+        assert(w === 20, 'Column Width: Day View (Exact)');
+    }
+
+    // Test 12: Calculate Column Width (Day View - Min Width)
+    {
+        const containerWidth = 1040; // 1000 available
+        const viewDays = 100; // 1000 / 100 = 10 < 20
+        const w = calculateColumnWidth(TimeScale.Day, viewDays, containerWidth);
+        assert(w === 20, 'Column Width: Day View (Min Width)');
+    }
+
+    // Test 13: Calculate Column Width (Week View)
+    {
+        const containerWidth = 1040; // 1000 available
+        const viewDays = 70; // 10 weeks
+        const w = calculateColumnWidth(TimeScale.Week, viewDays, containerWidth);
+        // (1000 * 7) / 70 = 100
+        assert(w === 100, 'Column Width: Week View');
+    }
+
+    // Test 14: Calculate Column Width (Month View)
+    {
+        const containerWidth = 1040; // 1000 available
+        const viewDays = 300; // 10 months
+        const w = calculateColumnWidth(TimeScale.Month, viewDays, containerWidth);
+        // (1000 * 30) / 300 = 100
+        assert(w === 100, 'Column Width: Month View');
+    }
+
+    // Test 15: Calculate Column Width (Year View)
+    {
+        const containerWidth = 1040; // 1000 available
+        const viewDays = 3650; // 10 years
+        const w = calculateColumnWidth(TimeScale.Year, viewDays, containerWidth);
+        // (1000 * 365) / 3650 = 100
+        assert(w === 100, 'Column Width: Year View');
     }
 
     console.log(`\nResults: ${passed} Passed, ${failed} Failed`);

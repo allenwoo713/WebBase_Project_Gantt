@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Task, Dependency, ViewMode, TimeScale, DependencyType, ProjectData, Member, ProjectSettings, Holiday, Priority, TaskStatus, FilterState } from './types';
 import GanttChart from './components/GanttChart';
 import TaskList from './components/TaskList';
@@ -6,14 +6,14 @@ import TaskModal from './components/TaskModal';
 import MemberManager from './components/MemberManager';
 import SettingsModal from './components/SettingsModal';
 import FilterPanel from './components/FilterPanel';
-import { addDays, addMonths, addYears, getDatesRange, getWeeksRange, getMonthsRange, getYearsRange, calculateCriticalPath, diffDays, diffProjectDays, addProjectDays, exportTasksToCSV, formatDate } from './utils';
+import { addDays, addMonths, addYears, getDatesRange, getWeeksRange, getMonthsRange, getYearsRange, calculateCriticalPath, diffDays, diffProjectDays, addProjectDays, exportTasksToCSV, formatDate, calculateColumnWidth } from './utils';
 import {
     Table, Columns, BarChart3, Save, Plus, ChevronLeft, ChevronRight, FolderOpen,
     Users, Settings as SettingsIcon, AlertTriangle, Download, Filter, Maximize, Info, ChevronDown
 } from 'lucide-react';
 
 const STORAGE_KEY = 'progantt-data-v2';
-const APP_VERSION = '1.0.1-beta';
+const APP_VERSION = '1.0.1-gamma';
 const APP_AUTHOR = 'Allen Woo';
 const APP_RELEASE_DATE = '2025-12-02';
 
@@ -67,7 +67,7 @@ const App: React.FC = () => {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const headerRef = useRef<HTMLDivElement>(null);
-    const ganttContainerRef = useRef<HTMLDivElement>(null);
+    const [ganttContainer, setGanttContainer] = useState<HTMLDivElement | null>(null);
     const saveMenuRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState<number>(1000); // Default width
 
@@ -81,28 +81,7 @@ const App: React.FC = () => {
     const viewEndDate = useMemo(() => addDays(derivedStartDate, viewDays + 4), [derivedStartDate, viewDays]);
 
     const derivedColumnWidth = useMemo(() => {
-        const availableWidth = containerWidth > 0 ? containerWidth - 40 : 1000;
-
-        switch (timeScale) {
-            case TimeScale.Year:
-                // Unit: Year.
-                if (viewDays > 0) return Math.max(50, (availableWidth * 365) / viewDays);
-                return 100;
-            case TimeScale.HalfYear:
-            case TimeScale.Quarter:
-            case TimeScale.Month:
-                // Unit: Month.
-                if (viewDays > 0) return Math.max(30, (availableWidth * 30) / viewDays);
-                return 60;
-            case TimeScale.Week:
-                // Unit: Week.
-                if (viewDays > 0) return Math.max(30, (availableWidth * 7) / viewDays);
-                return 50;
-            case TimeScale.Day:
-                if (viewDays > 0) return Math.max(20, availableWidth / viewDays);
-                return 40;
-            default: return 40;
-        }
+        return calculateColumnWidth(timeScale, viewDays, containerWidth);
     }, [timeScale, viewDays, containerWidth]);
 
     const headerDates = useMemo(() => {
@@ -374,7 +353,7 @@ const App: React.FC = () => {
 
     // Track container width for dynamic column sizing
     useEffect(() => {
-        if (!ganttContainerRef.current) return;
+        if (!ganttContainer) return;
 
         const resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
@@ -382,15 +361,15 @@ const App: React.FC = () => {
             }
         });
 
-        resizeObserver.observe(ganttContainerRef.current);
+        resizeObserver.observe(ganttContainer);
 
         // Set initial width
-        setContainerWidth(ganttContainerRef.current.offsetWidth);
+        setContainerWidth(ganttContainer.offsetWidth);
 
         return () => {
             resizeObserver.disconnect();
         };
-    }, [ganttContainerRef.current]);
+    }, [ganttContainer]);
 
     const handleOpenFileClick = () => {
         if (window.electronAPI?.isElectron) {
@@ -755,7 +734,7 @@ const App: React.FC = () => {
                 )}
 
                 {(viewMode === ViewMode.Split || viewMode === ViewMode.Gantt) && (
-                    <div className={`${viewMode === ViewMode.Split ? 'w-2/3' : 'w-full'} h-full overflow-hidden flex flex-col bg-gray-50 relative`} ref={ganttContainerRef}>
+                    <div className={`${viewMode === ViewMode.Split ? 'w-2/3' : 'w-full'} h-full overflow-hidden flex flex-col bg-gray-50 relative`} ref={setGanttContainer}>
                         {/* Gantt Header (Dates) */}
                         <div className="h-10 bg-white border-b border-gray-200 flex overflow-hidden select-none" ref={headerRef}>
                             <div className="flex relative" style={{ width: headerDates.length * derivedColumnWidth }}>
