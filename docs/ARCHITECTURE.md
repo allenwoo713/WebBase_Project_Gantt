@@ -85,6 +85,7 @@ ProGantt/
 ├── App.tsx                       # Main application component
 ├── types.ts                      # TypeScript type definitions
 ├── utils.ts                      # Utility functions
+├── utils.test.ts                 # Unit tests for utilities
 ├── index.tsx                     # React entry point
 ├── index.html                    # HTML template
 ├── index.css                     # Global styles (Tailwind)
