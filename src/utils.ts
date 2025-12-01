@@ -1,4 +1,4 @@
-import { Task, Dependency, DependencyType, ProjectSettings, Holiday, Member, TaskStatus } from './types';
+import { Task, Dependency, ProjectSettings, Holiday, Member } from './types';
 
 // --- Standard Date Math ---
 
@@ -277,12 +277,18 @@ export const calculateCriticalPath = (tasks: Task[], dependencies: Dependency[])
     return critical;
 };
 
-export const exportTasksToCSV = (tasks: Task[], members: Member[], dependencies: Dependency[], settings: ProjectSettings) => {
-    // Headers
-    const headers = ['ID', 'Name', 'Start Date', 'End Date', 'Duration', 'Hours', 'Progress', 'Status', 'Priority', 'Owner', 'Role', 'Assignments', 'Predecessors'];
+export const exportTasksToCSV = async (tasks: Task[], members: Member[], dependencies: Dependency[], settings: ProjectSettings): Promise<{ success: boolean; canceled?: boolean }> => {
+    // Headers - Reordered as requested
+    // ID, Name, Start, End, Actual Start, Actual End, Duration, Hours, Progress, Status, Priority, Owner, Role, Assignments, Predecessors, Deliverable, Base Score, Score
+    const headers = [
+        'ID', 'Name', 'Start Date', 'End Date', 'Actual Start', 'Actual End',
+        'Duration', 'Hours', 'Progress', 'Status', 'Priority',
+        'Owner', 'Role', 'Assignments', 'Predecessors',
+        'Deliverable', 'Base Score', 'Score'
+    ];
 
     // Rows
-    const rows = tasks.map(task => {
+    const rows = tasks.map((task, index) => {
         const owner = members.find(m => m.id === task.ownerId);
         const assignNames = (task.assignments || []).map(a => {
             const m = members.find(mem => mem.id === a.memberId);
@@ -298,16 +304,17 @@ export const exportTasksToCSV = (tasks: Task[], members: Member[], dependencies:
             .join('; ');
 
         // Calculate Hours
-        // Formula: ((OwnerEffort + Sum(AssignEffort)) / 100) * Duration * WorkingHours
         const totalEffort = (task.ownerEffort || 0) + (task.assignments || []).reduce((sum, a) => sum + (a.effort || 0), 0);
         const workingHours = settings.workingDayHours || 8;
         const hours = ((totalEffort / 100) * task.duration * workingHours).toFixed(1);
 
         return [
-            task.id,
-            `"${task.name.replace(/"/g, '""')}"`, // Escape quotes
+            index + 1, // ID as row number (1-based)
+            `"${task.name.replace(/"/g, '""')}"`,
             formatDate(task.start),
             formatDate(task.end),
+            formatDate(task.actualStart || new Date(NaN)), // Handle undefined
+            formatDate(task.actualEnd || new Date(NaN)),   // Handle undefined
             task.duration,
             hours,
             `${task.progress}%`,
@@ -316,20 +323,30 @@ export const exportTasksToCSV = (tasks: Task[], members: Member[], dependencies:
             owner ? owner.name : '',
             task.role || '',
             `"${assignNames}"`,
-            `"${preds}"`
+            `"${preds}"`,
+            task.deliverable || '',
+            task.baselineScore || '',
+            task.score || ''
         ].join(',');
     });
 
     const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n'); // Add BOM for Excel
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
 
-    // Create download link
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${settings.projectFilename || 'project'}_export.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (window.electronAPI?.isElectron) {
+        const defaultPath = `${settings.projectFilename || 'project'}_export.csv`;
+        return await window.electronAPI.exportCSV(defaultPath, csvContent);
+    } else {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+        // Create download link
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${settings.projectFilename || 'project'}_export.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return { success: true };
+    }
 };

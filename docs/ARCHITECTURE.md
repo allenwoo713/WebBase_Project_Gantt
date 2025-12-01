@@ -113,12 +113,21 @@ App (Root Component)
 │   └── About Button
 ├── FilterPanel (Conditional)
 ├── TaskList (View Mode: Table/Split)
-│   ├── Task Rows
-│   │   ├── Status Dropdown
-│   │   ├── Priority Dropdown
-│   │   ├── Owner Selector
-│   │   ├── Date Inputs
-│   │   └── Progress Bar
+│   ├── Header Row (Sort/Select All)
+│   └── Task Rows (Repeated)
+│       ├── Selection Checkbox
+│       ├── Index / Move Controls
+│       ├── Task Name Input
+│       ├── Status Dropdown
+│       ├── Role Input
+│       ├── Owner Selector
+│       ├── Team Assignments
+│       ├── Hours Display
+│       ├── Date Inputs (Start/End/Actual)
+│       ├── Duration Input
+│       ├── Progress Slider
+│       ├── Priority Dropdown
+│       └── Metadata (Deliverable/Scores)
 │   └── Batch Actions
 └── GanttChart (View Mode: Gantt/Split)
     ├── Header (Date Grid)
@@ -272,7 +281,24 @@ loadProjectData (Parse JSON)
     ↓
 setState (tasks, dependencies, members, settings)
     ↓
+    ↓
 Auto zoom to fit
+
+Export Flow:
+User clicks Export CSV
+    ↓
+exportTasksToCSV (utils.ts)
+    ↓
+Check if Electron
+    ↓ No            ↓ Yes
+Download Blob   electronAPI.exportCSV
+    ↓                   ↓
+                Show Save Dialog
+                    ↓
+                Write to file
+                    ↓
+                Return success/cancel
+
 ```
 
 ---

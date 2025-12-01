@@ -96,3 +96,25 @@ ipcMain.handle('load-project', async () => {
         return { success: false, error: error.message };
     }
 });
+
+// Export CSV (Save Dialog)
+ipcMain.handle('export-csv', async (event, { defaultPath, data }) => {
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+        title: 'Export CSV',
+        defaultPath: defaultPath || 'export.csv',
+        filters: [{ name: 'CSV Files', extensions: ['csv'] }],
+    });
+
+    if (canceled || !filePath) {
+        return { success: false, canceled: true };
+    }
+
+    try {
+        // Add BOM for Excel compatibility if not present
+        const content = data.startsWith('\uFEFF') ? data : '\uFEFF' + data;
+        fs.writeFileSync(filePath, content, 'utf-8');
+        return { success: true, filePath };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});

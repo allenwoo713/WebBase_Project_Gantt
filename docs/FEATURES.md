@@ -4,9 +4,9 @@
 
 ProGantt is a modern, desktop/web-based project management tool that provides comprehensive Gantt chart visualization and task management capabilities.
 
-**Version**: 1.0.0-beta  
+**Version**: 1.0.1-alpha  
 **Author**: Allen Woo  
-**Release Date**: 2025-11-25
+**Release Date**: 2025-12-01
 
 ---
 
@@ -44,6 +44,7 @@ ProGantt is a modern, desktop/web-based project management tool that provides co
 - Task properties:
   - Name, description, deliverable
   - Start date, end date, duration (in working days)
+  - Actual Start Date, Actual End Date
   - Status: Not Started, In Progress, Completed, On Hold
   - Priority: Low, Medium, High
   - Progress (0-100%)
@@ -110,10 +111,11 @@ ProGantt is a modern, desktop/web-based project management tool that provides co
 - Clear all filters with one click
 
 #### 10. **Data Export**
-- Export tasks to CSV with all fields
+- Export tasks to CSV with all fields including Actual Dates
 - Export team members to CSV
 - Includes calculated hours column
 - UTF-8 BOM for Excel compatibility
+- Native "Save As" dialog for exports (Electron)
 
 #### 11. **Project Persistence**
 - Auto-save to localStorage (web and desktop)
@@ -428,6 +430,8 @@ From left to right:
 | Hours | ❌ | Calculated |
 | Start | ✅ | Date picker |
 | End | ✅ | Date picker |
+| Actual Start | ✅ | Date picker |
+| Actual End | ✅ | Date picker |
 | Duration | ✅ | Number input |
 | Progress | ✅ | Slider |
 | Move | ❌ | Up/Down buttons |

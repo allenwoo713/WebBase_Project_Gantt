@@ -64,6 +64,8 @@ export interface Task {
   progress: number; // 0-100
   priority?: Priority;
   status?: TaskStatus;
+  actualStart?: Date;
+  actualEnd?: Date;
 
   // Assignment
   ownerId?: string;
@@ -118,6 +120,7 @@ declare global {
       saveProject: (filePath: string, data: string) => Promise<{ success: boolean; error?: string }>;
       saveProjectAs: (data: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
       loadProject: () => Promise<{ success: boolean; filePath?: string; data?: string; canceled?: boolean; error?: string }>;
+      exportCSV: (defaultPath: string, data: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
       isElectron: boolean;
     };
   }

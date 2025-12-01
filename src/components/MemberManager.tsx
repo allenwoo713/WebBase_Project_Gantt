@@ -8,11 +8,12 @@ interface MemberManagerProps {
     isOpen: boolean;
     onClose: () => void;
     onUpdateMembers: (members: Member[]) => void;
+    onShowNotification: (message: string, type?: 'success' | 'error') => void;
 }
 
 const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6'];
 
-const MemberManager: React.FC<MemberManagerProps> = ({ members, isOpen, onClose, onUpdateMembers }) => {
+const MemberManager: React.FC<MemberManagerProps> = ({ members, isOpen, onClose, onUpdateMembers, onShowNotification }) => {
     const [newMember, setNewMember] = useState<Partial<Member>>({ color: COLORS[0] });
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
@@ -54,15 +55,24 @@ const MemberManager: React.FC<MemberManagerProps> = ({ members, isOpen, onClose,
                     </div>
                     <div className="flex items-center gap-2">
                         <button
-                            onClick={() => {
+                            onClick={async () => {
                                 const headers = ['ID', 'Name', 'Role', 'Email', 'Phone', 'Color'];
                                 const rows = members.map(m => [m.id, m.name, m.role, m.email || '', m.phone || '', m.color || '']);
                                 const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
-                                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                                const link = document.createElement('a');
-                                link.href = URL.createObjectURL(blob);
-                                link.download = `members_export.csv`;
-                                link.click();
+
+                                if (window.electronAPI?.isElectron) {
+                                    const result = await window.electronAPI.exportCSV('members_export.csv', csvContent);
+                                    if (result.success) {
+                                        onShowNotification('Members exported successfully', 'success');
+                                    }
+                                } else {
+                                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                                    const link = document.createElement('a');
+                                    link.href = URL.createObjectURL(blob);
+                                    link.download = `members_export.csv`;
+                                    link.click();
+                                    onShowNotification('Members exported successfully', 'success');
+                                }
                             }}
                             className="px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100"
                         >

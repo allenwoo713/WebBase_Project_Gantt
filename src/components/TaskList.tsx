@@ -90,6 +90,18 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, members, settings, onTaskUpd
         }
     };
 
+    const onActualDateChange = (e: React.ChangeEvent<HTMLInputElement>, task: Task, field: 'actualStart' | 'actualEnd') => {
+        if (!e.target.value) {
+            onTaskUpdate({ ...task, [field]: undefined });
+            return;
+        }
+
+        const [y, m, d] = e.target.value.split('-').map(Number);
+        const newDate = new Date(y, m - 1, d);
+
+        onTaskUpdate({ ...task, [field]: newDate });
+    };
+
     const handleStatusChange = (task: Task, newStatus: TaskStatus) => {
         let newProgress = task.progress;
         if (newStatus === TaskStatus.NotStarted) {
@@ -162,7 +174,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, members, settings, onTaskUpd
         <div className="flex flex-col h-full border-r border-gray-200 bg-white select-none w-full overflow-hidden">
             {/* Header - Scrollable Container */}
             <div className="flex-1 overflow-auto">
-                <div className="min-w-[1500px]">
+                <div className="min-w-[1800px]">
 
                     {/* Header Row */}
                     <div className="flex items-center bg-gray-50 border-b border-gray-200 font-semibold text-xs text-gray-500 sticky top-0 z-10" style={{ height: 50 }}>
@@ -189,14 +201,16 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, members, settings, onTaskUpd
                         <div className="w-40 px-2 border-l border-gray-100 shrink-0">Owner (Effort)</div>
                         <div className="w-48 px-2 border-l border-gray-100 shrink-0">Team (Effort)</div>
                         <div className="w-20 px-2 border-l border-gray-100 shrink-0">Hours</div>
-                        <div className="w-32 px-2 border-l border-gray-100 shrink-0">Deliverable</div>
-                        <div className="w-24 px-2 border-l border-gray-100 shrink-0">Base Score</div>
-                        <div className="w-24 px-2 border-l border-gray-100 shrink-0">Score</div>
                         <div className="w-28 px-2 border-l border-gray-100 shrink-0">Start</div>
                         <div className="w-28 px-2 border-l border-gray-100 shrink-0">End</div>
+                        <div className="w-28 px-2 border-l border-gray-100 shrink-0">Actual Start</div>
+                        <div className="w-28 px-2 border-l border-gray-100 shrink-0">Actual End</div>
                         <div className="w-16 px-2 border-l border-gray-100 shrink-0">Days</div>
                         <div className="w-16 px-2 border-l border-gray-100 shrink-0">%</div>
                         <div className="w-24 px-2 border-l border-gray-100 shrink-0">Priority</div>
+                        <div className="w-32 px-2 border-l border-gray-100 shrink-0">Deliverable</div>
+                        <div className="w-24 px-2 border-l border-gray-100 shrink-0">Base Score</div>
+                        <div className="w-24 px-2 border-l border-gray-100 shrink-0">Score</div>
                     </div>
 
                     {/* Rows */}
@@ -319,39 +333,6 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, members, settings, onTaskUpd
                                     {calculateHours(task)} h
                                 </div>
 
-                                {/* Deliverable */}
-                                <div className="w-32 px-2 border-l border-gray-100 shrink-0">
-                                    <input
-                                        type="text"
-                                        value={task.deliverable || ''}
-                                        onChange={(e) => handleChange(task.id, 'deliverable', e.target.value)}
-                                        className="w-full bg-transparent text-xs text-gray-600 focus:outline-none focus:border-b focus:border-blue-500 truncate placeholder-gray-300"
-                                        placeholder="-"
-                                    />
-                                </div>
-
-                                {/* Baseline */}
-                                <div className="w-24 px-2 border-l border-gray-100 shrink-0 text-center">
-                                    <input
-                                        type="text"
-                                        value={task.baselineScore || ''}
-                                        onChange={(e) => handleChange(task.id, 'baselineScore', e.target.value)}
-                                        className="w-full bg-transparent text-xs text-center text-gray-600 focus:outline-none focus:border-b focus:border-blue-500 placeholder-gray-300"
-                                        placeholder="-"
-                                    />
-                                </div>
-
-                                {/* Score */}
-                                <div className="w-24 px-2 border-l border-gray-100 shrink-0 text-center">
-                                    <input
-                                        type="text"
-                                        value={task.score || ''}
-                                        onChange={(e) => handleChange(task.id, 'score', e.target.value)}
-                                        className="w-full bg-transparent text-xs text-center text-gray-600 focus:outline-none focus:border-b focus:border-blue-500 placeholder-gray-300"
-                                        placeholder="-"
-                                    />
-                                </div>
-
                                 {/* Start */}
                                 <div className="w-28 px-2 border-l border-gray-100 shrink-0 flex items-center text-xs text-gray-500">
                                     <input
@@ -369,6 +350,28 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, members, settings, onTaskUpd
                                         type="date"
                                         value={formatDate(task.end)}
                                         onChange={(e) => onDateChange(e, task, 'end')}
+                                        onClick={showPicker}
+                                        className={dateInputClass}
+                                    />
+                                </div>
+
+                                {/* Actual Start */}
+                                <div className="w-28 px-2 border-l border-gray-100 shrink-0 flex items-center text-xs text-gray-500">
+                                    <input
+                                        type="date"
+                                        value={formatDate(task.actualStart || new Date(NaN))}
+                                        onChange={(e) => onActualDateChange(e, task, 'actualStart')}
+                                        onClick={showPicker}
+                                        className={dateInputClass}
+                                    />
+                                </div>
+
+                                {/* Actual End */}
+                                <div className="w-28 px-2 border-l border-gray-100 shrink-0 flex items-center text-xs text-gray-500">
+                                    <input
+                                        type="date"
+                                        value={formatDate(task.actualEnd || new Date(NaN))}
+                                        onChange={(e) => onActualDateChange(e, task, 'actualEnd')}
                                         onClick={showPicker}
                                         className={dateInputClass}
                                     />
@@ -402,12 +405,45 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, members, settings, onTaskUpd
                                         <option value={Priority.Low}>Low</option>
                                     </select>
                                 </div>
+
+                                {/* Deliverable */}
+                                <div className="w-32 px-2 border-l border-gray-100 shrink-0">
+                                    <input
+                                        type="text"
+                                        value={task.deliverable || ''}
+                                        onChange={(e) => handleChange(task.id, 'deliverable', e.target.value)}
+                                        className="w-full bg-transparent text-xs text-gray-600 focus:outline-none focus:border-b focus:border-blue-500 truncate placeholder-gray-300"
+                                        placeholder="-"
+                                    />
+                                </div>
+
+                                {/* Baseline */}
+                                <div className="w-24 px-2 border-l border-gray-100 shrink-0 text-center">
+                                    <input
+                                        type="text"
+                                        value={task.baselineScore || ''}
+                                        onChange={(e) => handleChange(task.id, 'baselineScore', e.target.value)}
+                                        className="w-full bg-transparent text-xs text-center text-gray-600 focus:outline-none focus:border-b focus:border-blue-500 placeholder-gray-300"
+                                        placeholder="-"
+                                    />
+                                </div>
+
+                                {/* Score */}
+                                <div className="w-24 px-2 border-l border-gray-100 shrink-0 text-center">
+                                    <input
+                                        type="text"
+                                        value={task.score || ''}
+                                        onChange={(e) => handleChange(task.id, 'score', e.target.value)}
+                                        className="w-full bg-transparent text-xs text-center text-gray-600 focus:outline-none focus:border-b focus:border-blue-500 placeholder-gray-300"
+                                        placeholder="-"
+                                    />
+                                </div>
                             </div>
                         ))}
 
                         {/* Empty Filler */}
                         {tasks.length < 15 && Array.from({ length: 15 - tasks.length }).map((_, i) => (
-                            <div key={`empty-${i}`} className="min-w-[1500px] flex items-center border-b border-gray-50" style={{ height: ROW_HEIGHT }}>
+                            <div key={`empty-${i}`} className="min-w-[1800px] flex items-center border-b border-gray-50" style={{ height: ROW_HEIGHT }}>
                                 <div className="w-full bg-gray-50/10 h-full"></div>
                             </div>
                         ))}

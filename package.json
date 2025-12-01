@@ -1,7 +1,7 @@
 {
   "name": "project-gantt-master",
   "private": true,
-  "version": "1.0.0-gamma",
+  "version": "1.0.1-alpha",
   "author": "Allen Woo",
   "type": "module",
   "main": "electron/main.cjs",

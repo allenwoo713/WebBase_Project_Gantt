@@ -2,7 +2,7 @@
 
 **A powerful, feature-rich Gantt chart application for project management**
 
-**Version:** 1.0.0-gamma | **Author:** Allen Woo | **Released:** 2025-11-27
+**Version:** 1.0.1-alpha | **Author:** Allen Woo | **Released:** 2025-12-01
 
 ---
 
@@ -11,6 +11,7 @@
 ###  Core Functionality
 - **Interactive Gantt Chart**: Visualize project timelines with drag-and-drop task management
 - **Task Dependencies**: Create and manage task relationships (Finish-to-Start, Finish-to-Finish)
+- **Actual Dates**: Track actual start and end dates to compare against planned schedule
 - **Critical Path Analysis**: Automatically identify critical tasks that impact project completion
 - **Multiple View Modes**: Switch between Table, Split, and Gantt views
 - **Flexible Time Scales**: Day, Week, Month, Quarter, Half Year, and Year views with "1 cell = 1 unit" granularity
@@ -32,7 +33,7 @@
 ###  Data Management
 - **Auto-Save**: Automatic saving to browser localStorage
 - **Project Export/Import**: Save and load projects as JSON files
-- **CSV Export**: Export task data to CSV format (Table view)
+- **CSV Export**: Export task data to CSV format (Table view) with full field support (including Actual Dates)
 - **Electron Integration**: Desktop app with native file system access
 
 ---

@@ -90,6 +90,8 @@ interface Task {
     end: Date;                          // End date
     duration: number;                   // Duration in working days
     progress: number;                   // Completion percentage (0-100)
+    actualStart?: Date;                 // Actual start date
+    actualEnd?: Date;                   // Actual end date
     type: 'task' | 'milestone';         // Task type
     ownerId?: string;                   // Assigned owner (member ID)
     ownerEffort?: number;               // Owner's effort percentage (default: 100)
@@ -579,6 +581,25 @@ Opens file dialog and loads project.
     success: boolean;
     data?: string;      // JSON string
     filePath?: string;
+    error?: string;
+}
+```
+
+---
+
+#### `exportCSV(defaultPath: string, data: string): Promise<SaveAsResult>`
+Opens save dialog and saves CSV file.
+
+**Parameters:**
+- `defaultPath`: Default filename
+- `data`: CSV string content
+
+**Returns:**
+```typescript
+{
+    success: boolean;
+    filePath?: string;
+    canceled?: boolean;
     error?: string;
 }
 ```

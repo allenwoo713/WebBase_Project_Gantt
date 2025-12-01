@@ -13,9 +13,9 @@ import {
 } from 'lucide-react';
 
 const STORAGE_KEY = 'progantt-data-v2';
-const APP_VERSION = '1.0.0-gamma';
+const APP_VERSION = '1.0.1-alpha';
 const APP_AUTHOR = 'Allen Woo';
-const APP_RELEASE_DATE = '2025-11-25';
+const APP_RELEASE_DATE = '2025-12-01';
 
 const INITIAL_MEMBERS: Member[] = [
     { id: 'm1', name: 'Alice', role: 'Project Manager', color: '#3b82f6' },
@@ -68,6 +68,7 @@ const App: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const headerRef = useRef<HTMLDivElement>(null);
     const ganttContainerRef = useRef<HTMLDivElement>(null);
+    const saveMenuRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState<number>(1000); // Default width
 
     // Derived State
@@ -161,7 +162,7 @@ const App: React.FC = () => {
 
     const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
         setNotification({ message, type });
-        setTimeout(() => setNotification(null), 3000);
+        setTimeout(() => setNotification(null), 1000);
     };
 
     const handleGanttScroll = (scrollLeft: number) => {
@@ -355,6 +356,20 @@ const App: React.FC = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // Close save menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (saveMenuRef.current && !saveMenuRef.current.contains(event.target as Node)) {
+                setIsSaveMenuOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
     }, []);
 
     // Track container width for dynamic column sizing
@@ -639,7 +654,12 @@ const App: React.FC = () => {
                     {/* Export CSV Button (only in Table mode) */}
                     {viewMode === ViewMode.Table && (
                         <button
-                            onClick={() => exportTasksToCSV(tasks, members, dependencies, settings)}
+                            onClick={async () => {
+                                const result = await exportTasksToCSV(tasks, members, dependencies, settings);
+                                if (result.success) {
+                                    showNotification('Tasks exported successfully', 'success');
+                                }
+                            }}
                             className="flex items-center px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 mr-2"
                             title="Export as CSV"
                         >
@@ -662,18 +682,18 @@ const App: React.FC = () => {
                         <FolderOpen size={20} />
                     </button>
 
-                    <div className="relative">
+                    <div className="relative" ref={saveMenuRef}>
                         <div className="flex rounded-md shadow-sm">
                             <button
                                 onClick={saveProject}
-                                className="flex items-center px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-l-md hover:bg-blue-100 transition-colors"
+                                className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-l-md hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors"
                                 title="Save Project (Ctrl+S)"
                             >
                                 <Save size={16} className="mr-1" /> Save
                             </button>
                             <button
                                 onClick={() => setIsSaveMenuOpen(!isSaveMenuOpen)}
-                                className="flex items-center px-2 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border-t border-b border-r border-blue-200 rounded-r-md hover:bg-blue-100 transition-colors"
+                                className="flex items-center px-2 py-1.5 text-sm font-medium text-gray-700 bg-white border-t border-b border-r border-gray-200 rounded-r-md hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors"
                             >
                                 <ChevronDown size={14} />
                             </button>
@@ -825,6 +845,7 @@ const App: React.FC = () => {
                 onClose={() => setIsMemberManagerOpen(false)}
                 members={members}
                 onUpdateMembers={setMembers}
+                onShowNotification={showNotification}
             />
 
             <SettingsModal

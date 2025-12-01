@@ -170,6 +170,18 @@ const TaskModal: React.FC<TaskModalProps> = ({
         });
     };
 
+    const handleActualDateChange = (field: 'actualStart' | 'actualEnd', value: string) => {
+        if (!value) {
+            setEditedTask(prev => prev ? { ...prev, [field]: undefined } : null);
+            return;
+        }
+
+        const [y, m, d] = value.split('-').map(Number);
+        const date = new Date(y, m - 1, d);
+
+        setEditedTask(prev => prev ? { ...prev, [field]: date } : null);
+    };
+
     const showPicker = (e: React.MouseEvent<HTMLInputElement>) => {
         try {
             if (e.currentTarget && typeof e.currentTarget.showPicker === 'function') {
@@ -495,6 +507,29 @@ const TaskModal: React.FC<TaskModalProps> = ({
                                 </div>
                                 <div className="pt-1 text-sm text-gray-600 bg-blue-50 p-2 rounded border border-blue-100">
                                     Duration: <span className="font-bold text-blue-800">{editedTask.duration} days</span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">Actual Start</label>
+                                        <input
+                                            type="date"
+                                            value={formatDate(editedTask.actualStart || new Date(NaN))}
+                                            onChange={e => handleActualDateChange('actualStart', e.target.value)}
+                                            onClick={showPicker}
+                                            className={dateInputClass}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">Actual End</label>
+                                        <input
+                                            type="date"
+                                            value={formatDate(editedTask.actualEnd || new Date(NaN))}
+                                            onChange={e => handleActualDateChange('actualEnd', e.target.value)}
+                                            onClick={showPicker}
+                                            className={dateInputClass}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
