@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.1-beta] - 2025-12-02
+
+### Added
+- **Critical Path Analysis**: Implemented standard Critical Path Method (CPM) logic to correctly identify critical tasks based on dependencies and project settings.
+- **Critical Path Toggle**: Added a "Critical Path" checkbox to the toolbar to show/hide critical path highlighting.
+- **Unit Tests**: Added comprehensive unit tests (`src/utils.test.ts`) covering critical path calculation and Gantt chart rendering logic.
+
+### Fixed
+- **Gantt Chart Alignment**: Fixed task bar alignment issues in Week, Month, Quarter, and Year views by ensuring all calculations are relative to the grid start date.
+- **Task Interaction**: Restored double-click functionality on task bars to open the edit modal.
+- **Rendering Logic**: Refactored rendering calculations (`getTaskX`, `getTaskWidth`) into utility functions for better testability and consistency.
+
 ## [1.0.1-alpha] - 2025-12-01
 
 ### Added

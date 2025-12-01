@@ -1,4 +1,4 @@
-import { Task, Dependency, ProjectSettings, Holiday, Member } from './types';
+import { Task, Dependency, ProjectSettings, Holiday, Member, TimeScale } from './types';
 
 // --- Standard Date Math ---
 
@@ -211,67 +211,126 @@ export const addProjectDays = (start: Date, days: number, settings: ProjectSetti
     return current;
 };
 
-// --- Critical Path (Simplified) ---
-export const calculateCriticalPath = (tasks: Task[], dependencies: Dependency[]): Set<string> => {
+// --- Critical Path (Standard CPM Implementation) ---
+/**
+ * Identifies the Critical Path based on Total Float calculation.
+ * * Logic:
+ * 1. Find Project Finish Date (max end date of all tasks).
+ * 2. Calculate Slack (Total Float) for each task recursively.
+ * - For tasks with no successors: Slack = Project Finish - Task End.
+ * - For tasks with successors: Slack = min(Successor Slack + Gap).
+ * - Gap = Successor Start - Task End (in working days).
+ * 3. Tasks with 0 Slack are on the Critical Path.
+ * * Note: Requires 'settings' to correctly calculate gaps across weekends/holidays.
+ */
+export const calculateCriticalPath = (tasks: Task[], dependencies: Dependency[], settings?: ProjectSettings): Set<string> => {
     // 1. Build Graph
-    const adj = new Map<string, string[]>();
+    const successors = new Map<string, string[]>();
     const taskMap = new Map<string, Task>();
 
     tasks.forEach(t => {
-        adj.set(t.id, []);
         taskMap.set(t.id, t);
     });
 
     dependencies.forEach(d => {
-        if (adj.has(d.sourceId) && taskMap.has(d.targetId)) {
-            adj.get(d.sourceId)?.push(d.targetId);
+        if (taskMap.has(d.sourceId) && taskMap.has(d.targetId)) {
+            if (!successors.has(d.sourceId)) {
+                successors.set(d.sourceId, []);
+            }
+            successors.get(d.sourceId)?.push(d.targetId);
         }
     });
 
-    // 2. Calculate ES (Earliest Start) and EF (Earliest Finish)
-    // Topological Sort or just relaxation since it's a DAG (usually)
-    // For simplicity, we just use the current dates as they should be scheduled correctly already
-    // Critical path is the sequence where delay affects project end.
+    // 2. Find Project Finish (Max EF)
+    let projectFinishTime = 0;
+    let projectFinishDate: Date | null = null;
 
-    // Find project end
-    let maxEnd = 0;
     tasks.forEach(t => {
-        if (t.end.getTime() > maxEnd) maxEnd = t.end.getTime();
+        if (t.end.getTime() > projectFinishTime) {
+            projectFinishTime = t.end.getTime();
+            projectFinishDate = t.end;
+        }
     });
 
-    // Backwards pass (LF/LS)
-    // This requires a proper implementation. For now, we can identify tasks with 0 slack.
-    // Slack = LS - ES.
+    if (!projectFinishDate) return new Set();
 
-    // A simple heuristic for visualization:
-    // Tasks that end at Project End and their driving predecessors.
+    // 3. Memoized Slack Calculation (Backward Pass Logic)
+    const slackMap = new Map<string, number>();
 
-    const critical = new Set<string>();
+    const getSlack = (taskId: string): number => {
+        if (slackMap.has(taskId)) return slackMap.get(taskId)!;
 
-    const findCritical = (taskId: string) => {
-        if (critical.has(taskId)) return;
-        critical.add(taskId);
-
-        // Find dependencies that drive this task (End of pred == Start of this)
-        // Assuming FS dependencies
         const task = taskMap.get(taskId);
-        if (!task) return;
+        if (!task) return 0;
 
-        const preds = dependencies.filter(d => d.targetId === taskId);
-        preds.forEach(p => {
-            const predTask = taskMap.get(p.sourceId);
-            if (predTask) {
-                // If pred ends exactly when this starts (or close enough), it's driving
-                if (Math.abs(diffDays(task.start, predTask.end)) <= 1) { // 1 day buffer
-                    findCritical(p.sourceId);
-                }
+        const succIds = successors.get(taskId) || [];
+
+        let minSlack = Number.MAX_VALUE;
+
+        if (succIds.length === 0) {
+            // Terminal Task: Slack is distance to Project Finish
+            // In a valid CPM schedule, the critical terminal task ends exactly at Project Finish.
+            if (settings) {
+                // diffProjectDays is inclusive (Start=End -> 1 day). 
+                // Gap = Count - 1. 
+                // E.g. End=Fri, Finish=Fri. Count=1. Gap=0.
+                const days = diffProjectDays(task.end, projectFinishDate!, settings);
+                minSlack = Math.max(0, days - 1);
+            } else {
+                // Fallback without settings (simple calendar days)
+                const days = Math.abs(diffDays(task.end, projectFinishDate!));
+                minSlack = days;
             }
-        });
+        } else {
+            // Intermediate Task: Slack = min(Successor Slack + Gap)
+            succIds.forEach(succId => {
+                const succTask = taskMap.get(succId);
+                if (succTask) {
+                    const succSlack = getSlack(succId);
+
+                    // Calculate Gap (Free Float component between these two tasks)
+                    let gap = 0;
+                    if (settings) {
+                        // Calculate working days between Task End and Successor Start
+                        // Gap = Working Days strictly between End and Start.
+                        // diffProjectDays is inclusive of both endpoints.
+                        // We subtract 1 for the Start Date (if working) and 1 for the End Date (if working)
+                        // to get the days *between*.
+                        const days = diffProjectDays(task.end, succTask.start, settings);
+                        const startWorking = isWorkingDay(task.end, settings) ? 1 : 0;
+                        const endWorking = isWorkingDay(succTask.start, settings) ? 1 : 0;
+                        gap = Math.max(0, days - startWorking - endWorking);
+                    } else {
+                        // Fallback: simple calendar days
+                        // Mon->Tue is 1 day diff. Gap 0.
+                        const days = diffDays(succTask.start, task.end); // task.end is earlier
+                        gap = Math.max(0, days - 1);
+                    }
+
+                    const pathSlack = succSlack + gap;
+                    if (pathSlack < minSlack) {
+                        minSlack = pathSlack;
+                    }
+                }
+            });
+        }
+
+        // Safety cap
+        if (minSlack === Number.MAX_VALUE) minSlack = 0;
+
+        slackMap.set(taskId, minSlack);
+        return minSlack;
     };
 
-    // Start with tasks ending at maxEnd
-    tasks.filter(t => Math.abs(diffDays(t.end, new Date(maxEnd))) <= 1).forEach(t => {
-        findCritical(t.id);
+    // 4. Identify Critical Path (Slack == 0)
+    const critical = new Set<string>();
+
+    tasks.forEach(t => {
+        const slack = getSlack(t.id);
+        // We use a very small threshold for float math, but with integer days, 0 is exact.
+        if (slack <= 0) {
+            critical.add(t.id);
+        }
     });
 
     return critical;
@@ -349,4 +408,41 @@ export const exportTasksToCSV = async (tasks: Task[], members: Member[], depende
         document.body.removeChild(link);
         return { success: true };
     }
+};
+
+// --- Gantt Rendering Helpers ---
+
+export const getTaskX = (date: Date, referenceDate: Date, timeScale: TimeScale, columnWidth: number): number => {
+    switch (timeScale) {
+        case TimeScale.Day: return diffDays(date, referenceDate) * columnWidth;
+        case TimeScale.Week: return diffWeeks(date, referenceDate) * columnWidth;
+        case TimeScale.Month:
+        case TimeScale.Quarter:
+        case TimeScale.HalfYear: return diffMonths(date, referenceDate) * columnWidth;
+        case TimeScale.Year: return diffYears(date, referenceDate) * columnWidth;
+        default: return diffDays(date, referenceDate) * columnWidth;
+    }
+};
+
+export const getTaskWidth = (start: Date, end: Date, timeScale: TimeScale, columnWidth: number): number => {
+    let width = 0;
+    switch (timeScale) {
+        case TimeScale.Day:
+            width = (diffDays(end, start) + 1) * columnWidth;
+            break;
+        case TimeScale.Week:
+            width = (diffWeeks(end, start) + (1 / 7)) * columnWidth;
+            break;
+        case TimeScale.Month:
+        case TimeScale.Quarter:
+        case TimeScale.HalfYear:
+            // Add small buffer for visibility if start==end
+            width = Math.max(diffMonths(end, start), 1 / 30) * columnWidth;
+            break;
+        case TimeScale.Year:
+            width = Math.max(diffYears(end, start), 1 / 365) * columnWidth;
+            break;
+        default: width = (diffDays(end, start) + 1) * columnWidth;
+    }
+    return Math.max(width, 2);
 };

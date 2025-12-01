@@ -4,9 +4,9 @@
 
 ProGantt is a modern, desktop/web-based project management tool that provides comprehensive Gantt chart visualization and task management capabilities.
 
-**Version**: 1.0.1-alpha  
+**Version**: 1.0.1-beta  
 **Author**: Allen Woo  
-**Release Date**: 2025-12-01
+**Release Date**: 2025-12-02
 
 ---
 
@@ -66,7 +66,8 @@ ProGantt is a modern, desktop/web-based project management tool that provides co
 - Automatic critical path calculation
 - Highlight critical tasks in red
 - Toggle visibility on/off
-- Uses CPM (Critical Path Method) algorithm
+- Uses CPM (Critical Path Method) algorithm with Total Float calculation
+- Considers working days, holidays, and weekends in gap calculations
 
 #### 5. **Team Member Management**
 - Add, edit, delete team members
@@ -631,6 +632,18 @@ For bug reports and feature requests, please contact the author.
 ---
 
 ## Changelog
+
+### v1.0.1-beta (2025-12-02)
+
+**New Features**:
+- ✨ Standard Critical Path Method (CPM) implementation
+- ✨ Critical Path toggle in toolbar
+- ✨ Actual Start/End dates for tasks
+
+**Improvements**:
+- ⚡ Refactored Gantt rendering logic for better performance and accuracy
+- 🎨 Improved task bar alignment across all time scales
+- 🧪 Added comprehensive unit tests
 
 ### v1.0.0-beta (2025-11-25)
 

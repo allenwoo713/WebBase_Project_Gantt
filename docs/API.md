@@ -418,10 +418,10 @@ Identifies tasks on the critical path.
 **Returns:** Set of task IDs on the critical path
 
 **Algorithm:**
-1. Topological sort tasks
-2. Forward pass: Calculate earliest start/finish times
-3. Backward pass: Calculate latest start/finish times
-4. Identify tasks with zero slack (ES = LS)
+1. Build dependency graph
+2. Determine project finish date
+3. Calculate Total Float (Slack) recursively for each task
+4. Identify tasks with zero slack
 
 ---
 

@@ -2,7 +2,7 @@
 
 **A powerful, feature-rich Gantt chart application for project management**
 
-**Version:** 1.0.1-alpha | **Author:** Allen Woo | **Released:** 2025-12-01
+**Version:** 1.0.1-beta | **Author:** Allen Woo | **Released:** 2025-12-02
 
 ---
 
@@ -12,7 +12,8 @@
 - **Interactive Gantt Chart**: Visualize project timelines with drag-and-drop task management
 - **Task Dependencies**: Create and manage task relationships (Finish-to-Start, Finish-to-Finish)
 - **Actual Dates**: Track actual start and end dates to compare against planned schedule
-- **Critical Path Analysis**: Automatically identify critical tasks that impact project completion
+- **Critical Path Analysis**: Automatically identify critical tasks using standard CPM (Critical Path Method)
+- **Robust Rendering**: Accurate task alignment across all time scales (Day, Week, Month, Quarter, Year)
 - **Multiple View Modes**: Switch between Table, Split, and Gantt views
 - **Flexible Time Scales**: Day, Week, Month, Quarter, Half Year, and Year views with "1 cell = 1 unit" granularity
 

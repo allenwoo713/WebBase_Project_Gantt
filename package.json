@@ -1,7 +1,7 @@
 {
   "name": "project-gantt-master",
   "private": true,
-  "version": "1.0.1-alpha",
+  "version": "1.0.1-beta",
   "author": "Allen Woo",
   "type": "module",
   "main": "electron/main.cjs",
@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "electron": "concurrently \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:pack": "npm run build && electron-builder --dir",
-    "electron:dist": "npm run build && electron-builder"
+    "electron:dist": "npm run build && electron-builder",
+    "test": "npx tsx src/utils.test.ts"
   },
   "build": {
     "appId": "com.progantt.app",

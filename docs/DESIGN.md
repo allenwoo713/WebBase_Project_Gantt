@@ -139,129 +139,94 @@ The critical path is the longest sequence of dependent tasks that determines the
 
 ### Algorithm: `calculateCriticalPath(tasks, dependencies)`
 
-Uses the **Critical Path Method (CPM)** algorithm:
+Uses a **Recursive Total Float (Slack)** calculation approach, which is equivalent to the Critical Path Method (CPM) but optimized for the current data structure.
 
 #### Step 1: Build Dependency Graph
 
 ```typescript
-const graph = new Map<string, string[]>();
-tasks.forEach(t => graph.set(t.id, []));
+const successors = new Map<string, string[]>();
+tasks.forEach(t => successors.set(t.id, []));
 dependencies.forEach(d => {
-    const successors = graph.get(d.sourceId) || [];
-    successors.push(d.targetId);
-    graph.set(d.sourceId, successors);
+    const list = successors.get(d.sourceId) || [];
+    list.push(d.targetId);
+    successors.set(d.sourceId, list);
 });
 ```
 
-#### Step 2: Topological Sort
+#### Step 2: Determine Project Finish Date
+
+The project finish date is the latest end date among all tasks.
 
 ```typescript
-function topologicalSort(tasks: Task[], graph: Map<string, string[]>): string[] {
-    const inDegree = new Map<string, number>();
-    const queue: string[] = [];
-    const sorted: string[] = [];
-    
-    // Initialize in-degrees
-    tasks.forEach(t => inDegree.set(t.id, 0));
-    graph.forEach(successors => {
-        successors.forEach(id => {
-            inDegree.set(id, (inDegree.get(id) || 0) + 1);
-        });
-    });
-    
-    // Find tasks with no predecessors
-    inDegree.forEach((degree, id) => {
-        if (degree === 0) queue.push(id);
-    });
-    
-    // Kahn's algorithm
-    while (queue.length > 0) {
-        const current = queue.shift()!;
-        sorted.push(current);
-        
-        const successors = graph.get(current) || [];
-        successors.forEach(succ => {
-            const newDegree = (inDegree.get(succ) || 0) - 1;
-            inDegree.set(succ, newDegree);
-            if (newDegree === 0) {
-                queue.push(succ);
-            }
-        });
+let projectFinishDate: Date | null = null;
+let projectFinishTime = 0;
+
+tasks.forEach(t => {
+    if (t.end.getTime() > projectFinishTime) {
+        projectFinishTime = t.end.getTime();
+        projectFinishDate = t.end;
     }
-    
-    return sorted;
-}
-```
-
-#### Step 3: Forward Pass (Earliest Times)
-
-```typescript
-const ES = new Map<string, number>(); // Earliest Start
-const EF = new Map<string, number>(); // Earliest Finish
-
-sortedIds.forEach(id => {
-    const task = taskMap.get(id)!;
-    
-    // Find max EF of all predecessors
-    let maxPredFinish = 0;
-    dependencies.forEach(dep => {
-        if (dep.targetId === id) {
-            const predEF = EF.get(dep.sourceId) || 0;
-            maxPredFinish = Math.max(maxPredFinish, predEF);
-        }
-    });
-    
-    ES.set(id, maxPredFinish);
-    EF.set(id, maxPredFinish + task.duration);
 });
 ```
 
-#### Step 4: Backward Pass (Latest Times)
+#### Step 3: Recursive Slack Calculation (Memoized)
+
+We calculate the "Slack" (Total Float) for each task. Slack is the amount of time a task can be delayed without delaying the project finish date.
+
+**Formula**:
+- **Terminal Tasks** (no successors): `Slack = ProjectFinish - TaskEnd`
+- **Intermediate Tasks**: `Slack = min(SuccessorSlack + Gap)`
+  - Where `Gap` is the working days between `TaskEnd` and `SuccessorStart`.
 
 ```typescript
-const projectFinish = Math.max(...Array.from(EF.values()));
-const LS = new Map<string, number>(); // Latest Start
-const LF = new Map<string, number>(); // Latest Finish
+const slackMap = new Map<string, number>();
 
-// Traverse in reverse topological order
-for (let i = sortedIds.length - 1; i >= 0; i--) {
-    const id = sortedIds[i];
-    const task = taskMap.get(id)!;
-    
-    const successors = graph.get(id) || [];
-    let minSuccStart = projectFinish;
-    
-    if (successors.length === 0) {
-        // No successors: LF = project finish
-        minSuccStart = projectFinish;
+const getSlack = (taskId: string): number => {
+    if (slackMap.has(taskId)) return slackMap.get(taskId)!;
+
+    const task = taskMap.get(taskId);
+    const succIds = successors.get(taskId) || [];
+    let minSlack = Number.MAX_VALUE;
+
+    if (succIds.length === 0) {
+        // Terminal Task
+        const days = diffProjectDays(task.end, projectFinishDate!, settings);
+        minSlack = Math.max(0, days - 1);
     } else {
-        successors.forEach(succId => {
-            const succLS = LS.get(succId) || 0;
-            minSuccStart = Math.min(minSuccStart, succLS);
+        // Intermediate Task
+        succIds.forEach(succId => {
+            const succTask = taskMap.get(succId);
+            const succSlack = getSlack(succId);
+            
+            // Calculate Gap (Free Float component)
+            // Gap = diffProjectDays(End, Start) - isWorking(End) - isWorking(Start)
+            const days = diffProjectDays(task.end, succTask.start, settings);
+            const startWorking = isWorkingDay(task.end, settings) ? 1 : 0;
+            const endWorking = isWorkingDay(succTask.start, settings) ? 1 : 0;
+            const gap = Math.max(0, days - startWorking - endWorking);
+
+            const pathSlack = succSlack + gap;
+            if (pathSlack < minSlack) minSlack = pathSlack;
         });
     }
-    
-    LF.set(id, minSuccStart);
-    LS.set(id, minSuccStart - task.duration);
-}
+
+    slackMap.set(taskId, minSlack);
+    return minSlack;
+};
 ```
 
-#### Step 5: Identify Critical Tasks
+#### Step 4: Identify Critical Tasks
+
+Tasks with **zero slack** are on the critical path.
 
 ```typescript
-const criticalTasks = new Set<string>();
-
-sortedIds.forEach(id => {
-    const es = ES.get(id) || 0;
-    const ls = LS.get(id) || 0;
-    
-    // Zero slack = critical
-    if (Math.abs(es - ls) < 0.001) {
-        criticalTasks.add(id);
+const critical = new Set<string>();
+tasks.forEach(t => {
+    if (getSlack(t.id) <= 0) {
+        critical.add(t.id);
     }
 });
-
-return criticalTasks;
+return critical;
 ```
 
 **Key Insight**: Tasks with **zero slack** (ES = LS) are on the critical path. Any delay in these tasks delays the entire project.

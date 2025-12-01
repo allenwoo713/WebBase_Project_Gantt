@@ -13,9 +13,9 @@ import {
 } from 'lucide-react';
 
 const STORAGE_KEY = 'progantt-data-v2';
-const APP_VERSION = '1.0.1-alpha';
+const APP_VERSION = '1.0.1-beta';
 const APP_AUTHOR = 'Allen Woo';
-const APP_RELEASE_DATE = '2025-12-01';
+const APP_RELEASE_DATE = '2025-12-02';
 
 const INITIAL_MEMBERS: Member[] = [
     { id: 'm1', name: 'Alice', role: 'Project Manager', color: '#3b82f6' },
@@ -123,7 +123,7 @@ const App: React.FC = () => {
         }
     }, [derivedStartDate, viewEndDate, timeScale]);
 
-    const criticalTaskIds = useMemo(() => showCriticalPath ? calculateCriticalPath(tasks, dependencies) : new Set<string>(), [tasks, dependencies, showCriticalPath]);
+    const criticalTaskIds = useMemo(() => showCriticalPath ? calculateCriticalPath(tasks, dependencies, settings) : new Set<string>(), [tasks, dependencies, showCriticalPath, settings]);
 
     // Filter Logic
     const filteredTasks = useMemo(() => {
@@ -577,6 +577,16 @@ const App: React.FC = () => {
                     <button onClick={() => setIsSettingsOpen(true)} className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
                         <SettingsIcon size={16} className="mr-2" /> Settings
                     </button>
+
+                    <label className="flex items-center space-x-2 text-sm text-gray-700 bg-gray-100 px-3 py-1.5 rounded-md hover:bg-gray-200 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={showCriticalPath}
+                            onChange={(e) => setShowCriticalPath(e.target.checked)}
+                            className="rounded text-blue-600 focus:ring-blue-500"
+                        />
+                        <span>Critical Path</span>
+                    </label>
 
                     <select
                         value={timeScale}

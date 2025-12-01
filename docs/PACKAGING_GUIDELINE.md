@@ -31,9 +31,9 @@ Get-Date -Format "yyyy-MM-dd"
 
 2. **src/App.tsx** (lines 16-18):
    ```typescript
-   const APP_VERSION = '1.0.0-gamma';  // Match package.json version
+   const APP_VERSION = '1.0.1-beta';  // Match package.json version
    const APP_AUTHOR = 'Allen Woo';
-   const APP_RELEASE_DATE = '2025-11-27';  // Use current system date from above
+   const APP_RELEASE_DATE = '2025-12-02';  // Use current system date from above
    ```
 
 **⚠️ IMPORTANT**: Always use the actual system date from the command above, not a guessed date!

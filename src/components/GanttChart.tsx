@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Task, Dependency, ROW_HEIGHT, ProjectSettings, Priority, TimeScale } from '../types';
-import { addDays, diffDays, diffWeeks, diffMonths, diffYears, getDatesRange, getWeeksRange, getMonthsRange, getYearsRange, getHolidayForDate, isMakeUpDay } from '../utils';
+import { addDays, diffDays, diffWeeks, diffMonths, diffYears, getDatesRange, getWeeksRange, getMonthsRange, getYearsRange, getHolidayForDate, isMakeUpDay, getTaskX as getTaskXUtil, getTaskWidth as getTaskWidthUtil } from '../utils';
 import { Trash2 } from 'lucide-react';
 
 interface GanttChartProps {
@@ -67,39 +67,14 @@ const GanttChart: React.FC<GanttChartProps> = ({
     return () => window.removeEventListener('click', handleClick);
   }, []);
 
+  const gridStartDate = dates.length > 0 ? dates[0] : viewStartDate;
+
   const getTaskX = (date: Date) => {
-    switch (timeScale) {
-      case TimeScale.Day: return diffDays(date, viewStartDate) * columnWidth;
-      case TimeScale.Week: return diffWeeks(date, viewStartDate) * columnWidth;
-      case TimeScale.Month:
-      case TimeScale.Quarter:
-      case TimeScale.HalfYear: return diffMonths(date, viewStartDate) * columnWidth;
-      case TimeScale.Year: return diffYears(date, viewStartDate) * columnWidth;
-      default: return diffDays(date, viewStartDate) * columnWidth;
-    }
+    return getTaskXUtil(date, gridStartDate, timeScale, columnWidth);
   };
 
   const getTaskWidth = (start: Date, end: Date) => {
-    let width = 0;
-    switch (timeScale) {
-      case TimeScale.Day:
-        width = (diffDays(end, start) + 1) * columnWidth;
-        break;
-      case TimeScale.Week:
-        width = (diffWeeks(end, start) + (1 / 7)) * columnWidth;
-        break;
-      case TimeScale.Month:
-      case TimeScale.Quarter:
-      case TimeScale.HalfYear:
-        // Add small buffer for visibility if start==end
-        width = Math.max(diffMonths(end, start), 1 / 30) * columnWidth;
-        break;
-      case TimeScale.Year:
-        width = Math.max(diffYears(end, start), 1 / 365) * columnWidth;
-        break;
-      default: width = (diffDays(end, start) + 1) * columnWidth;
-    }
-    return Math.max(width, 2);
+    return getTaskWidthUtil(start, end, timeScale, columnWidth);
   };
 
   const handleMouseDown = (e: React.MouseEvent, task: Task, action: 'move' | 'resize-l' | 'resize-r' | 'link') => {
@@ -321,6 +296,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
               key={task.id}
               className="cursor-pointer"
               onMouseDown={(e) => handleMouseDown(e, task, 'move')}
+              onDoubleClick={() => onTaskClick(task)}
               onMouseEnter={() => setHoveredTask(task.id)}
               onMouseLeave={() => setHoveredTask(null)}
             >
