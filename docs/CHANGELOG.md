@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.1-gamma] - 2025-12-02
+
+### Fixed
+- **Project Load Priority**: Fixed a critical issue where the application would load stale data from `localStorage` instead of the most recently saved file. Now, if a project has a saved file path, the app prioritizes loading from the file system on startup.
+- **Gantt Chart Timeline**: Fixed a rendering issue where switching from "Task List" to "Gantt" view caused the timeline to render incorrectly (blank space).
+
 ## [1.0.1-beta] - 2025-12-02
 
 ### Added

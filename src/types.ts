@@ -120,12 +120,12 @@ declare global {
       saveProject: (filePath: string, data: string) => Promise<{ success: boolean; error?: string }>;
       saveProjectAs: (data: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
       loadProject: () => Promise<{ success: boolean; filePath?: string; data?: string; canceled?: boolean; error?: string }>;
+      loadSpecificProject: (filePath: string) => Promise<{ success: boolean; filePath?: string; data?: string; error?: string }>;
       exportCSV: (defaultPath: string, data: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
       isElectron: boolean;
     };
   }
 }
-
 export const COLUMN_WIDTH = 60;
 export const ROW_HEIGHT = 44;
 export const HEADER_HEIGHT = 50;

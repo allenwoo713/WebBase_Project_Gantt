@@ -6,7 +6,7 @@ import TaskModal from './components/TaskModal';
 import MemberManager from './components/MemberManager';
 import SettingsModal from './components/SettingsModal';
 import FilterPanel from './components/FilterPanel';
-import { addDays, addMonths, addYears, getDatesRange, getWeeksRange, getMonthsRange, getYearsRange, calculateCriticalPath, diffDays, diffProjectDays, addProjectDays, exportTasksToCSV, formatDate, calculateColumnWidth } from './utils';
+import { addDays, addMonths, addYears, getDatesRange, getWeeksRange, getMonthsRange, getYearsRange, calculateCriticalPath, diffDays, diffProjectDays, addProjectDays, exportTasksToCSV, formatDate, calculateColumnWidth, determineProjectLoadSource } from './utils';
 import {
     Table, Columns, BarChart3, Save, Plus, ChevronLeft, ChevronRight, FolderOpen,
     Users, Settings as SettingsIcon, AlertTriangle, Download, Filter, Maximize, Info, ChevronDown
@@ -321,10 +321,35 @@ const App: React.FC = () => {
     };
 
     useEffect(() => {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            loadProjectData(saved);
-        }
+        const initializeProject = async () => {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            const source = determineProjectLoadSource(saved);
+
+            if (source === 'file' && window.electronAPI?.isElectron && saved) {
+                // Try to load from saved file path
+                try {
+                    const parsedData = JSON.parse(saved);
+                    const filePath = parsedData.settings?.projectSavePath;
+
+                    if (filePath) {
+                        const result = await window.electronAPI.loadSpecificProject(filePath);
+                        if (result.success && result.data) {
+                            loadProjectData(result.data);
+                            return; // Successfully loaded from file
+                        }
+                        // If file load fails, fall through to localStorage
+                    }
+                } catch (error) {
+                    console.error('Failed to load from file, falling back to localStorage:', error);
+                }
+            }
+
+            if (source === 'localStorage' && saved) {
+                loadProjectData(saved);
+            }
+        };
+
+        initializeProject();
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 's') {

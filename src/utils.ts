@@ -471,3 +471,27 @@ export const calculateColumnWidth = (timeScale: TimeScale, viewDays: number, con
         default: return 40;
     }
 };
+
+/**
+ * Determines which data source to use when loading project on app startup.
+ * Priority: File system > localStorage > none
+ */
+export const determineProjectLoadSource = (localStorageData: string | null): 'file' | 'localStorage' | 'none' => {
+    if (!localStorageData) return 'none';
+
+    try {
+        const parsed = JSON.parse(localStorageData);
+        const projectSavePath = parsed?.settings?.projectSavePath;
+
+        // If we have a saved file path, prioritize loading from file
+        if (projectSavePath && typeof projectSavePath === 'string' && projectSavePath.trim().length > 0) {
+            return 'file';
+        }
+
+        // Otherwise, use localStorage data
+        return 'localStorage';
+    } catch (error) {
+        // Invalid JSON, cannot use
+        return 'none';
+    }
+};

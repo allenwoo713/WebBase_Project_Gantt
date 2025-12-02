@@ -118,3 +118,13 @@ ipcMain.handle('export-csv', async (event, { defaultPath, data }) => {
         return { success: false, error: error.message };
     }
 });
+
+// Load Specific Project (Direct path, no dialog)
+ipcMain.handle('load-specific-project', async (event, filePath) => {
+    try {
+        const data = fs.readFileSync(filePath, 'utf-8');
+        return { success: true, filePath, data };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});

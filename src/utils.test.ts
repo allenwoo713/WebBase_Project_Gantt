@@ -1,4 +1,4 @@
-import { calculateCriticalPath, diffProjectDays, addProjectDays, getTaskX, getTaskWidth, calculateColumnWidth } from './utils';
+import { calculateCriticalPath, diffProjectDays, addProjectDays, getTaskX, getTaskWidth, calculateColumnWidth, determineProjectLoadSource } from './utils';
 import { Task, Dependency, ProjectSettings, DependencyType, TaskStatus, Priority, TimeScale } from './types';
 
 // Mock Data Helpers
@@ -212,6 +212,55 @@ async function runTests() {
         const w = calculateColumnWidth(TimeScale.Year, viewDays, containerWidth);
         // (1000 * 365) / 3650 = 100
         assert(w === 100, 'Column Width: Year View');
+    }
+
+    console.log('\nRunning Project Load Source Tests...');
+    // Test 16: No localStorage data
+    {
+        const source = determineProjectLoadSource(null);
+        assert(source === 'none', 'Project Load: No data returns none');
+    }
+
+    // Test 17: localStorage with no projectSavePath
+    {
+        const dataWithoutPath = JSON.stringify({
+            settings: { projectFilename: 'test' }
+        });
+        const source = determineProjectLoadSource(dataWithoutPath);
+        assert(source === 'localStorage', 'Project Load: No path uses localStorage');
+    }
+
+    // Test 18: localStorage with projectSavePath
+    {
+        const dataWithPath = JSON.stringify({
+            settings: { projectSavePath: 'D:\\projects\\test.json' }
+        });
+        const source = determineProjectLoadSource(dataWithPath);
+        assert(source === 'file', 'Project Load: With path uses file');
+    }
+
+    // Test 19: Invalid JSON
+    {
+        const source = determineProjectLoadSource('invalid json');
+        assert(source === 'none', 'Project Load: Invalid JSON returns none');
+    }
+
+    // Test 20: Empty projectSavePath
+    {
+        const dataWithEmptyPath = JSON.stringify({
+            settings: { projectSavePath: '' }
+        });
+        const source = determineProjectLoadSource(dataWithEmptyPath);
+        assert(source === 'localStorage', 'Project Load: Empty path uses localStorage');
+    }
+
+    // Test 21: Whitespace-only projectSavePath
+    {
+        const dataWithWhitespacePath = JSON.stringify({
+            settings: { projectSavePath: '   ' }
+        });
+        const source = determineProjectLoadSource(dataWithWhitespacePath);
+        assert(source === 'localStorage', 'Project Load: Whitespace path uses localStorage');
     }
 
     console.log(`\nResults: ${passed} Passed, ${failed} Failed`);

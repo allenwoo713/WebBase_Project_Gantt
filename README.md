@@ -2,7 +2,7 @@
 
 **A powerful, feature-rich Gantt chart application for project management**
 
-**Version:** 1.0.1-beta | **Author:** Allen Woo | **Released:** 2025-12-02
+**Version:** 1.0.1-gamma | **Author:** Allen Woo | **Released:** 2025-12-02
 
 ---
 

@@ -1,5 +1,6 @@
 ---
-description: Mandatory development workflow for all features and changes
+trigger: model_decision
+description: if there is new requiremnts and bug, follow below workflow
 ---
 
 # Development Workflow Rules

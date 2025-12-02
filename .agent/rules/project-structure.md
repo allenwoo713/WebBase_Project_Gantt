@@ -1,3 +1,8 @@
+---
+trigger: model_decision
+description: if there is new file generated, please follow project file structure rules
+---
+
 # Project Structure Rules
 
 This document defines the rules for creating and organizing files in the ProGantt project.
