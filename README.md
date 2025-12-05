@@ -2,7 +2,7 @@
 
 **A powerful, feature-rich Gantt chart application for project management**
 
-**Version:** 1.0.1-gamma | **Author:** Allen Woo | **Released:** 2025-12-02
+**Version:** 1.0.1-epsilon | **Author:** Allen Woo | **Released:** 2025-12-05
 
 ---
 
@@ -36,6 +36,7 @@
 - **Project Export/Import**: Save and load projects as JSON files
 - **CSV Export**: Export task data to CSV format (Table view) with full field support (including Actual Dates)
 - **Electron Integration**: Desktop app with native file system access
+- **Robust Persistence**: Dual-layer persistence (File System + localStorage) ensures data safety
 
 ---
 
@@ -73,6 +74,16 @@ npm run dev
 
 The application will be available at http://localhost:3000
 
+#### Testing
+
+```bash
+# Run Unit Tests
+npm test
+
+# Run E2E Tests (Playwright)
+npm run test:e2e
+```
+
 #### Build for Production
 
 ```bash
@@ -83,7 +94,7 @@ npm run build
 npx electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite
 ```
 
-For detailed packaging instructions, see [PACKAGING_GUIDELINE.md](PACKAGING_GUIDELINE.md).
+For detailed packaging instructions, see [docs/guides/PACKAGING_GUIDELINE.md](docs/guides/PACKAGING_GUIDELINE.md).
 
 ---
 
@@ -130,6 +141,7 @@ For detailed packaging instructions, see [PACKAGING_GUIDELINE.md](PACKAGING_GUID
 - **Styling**: Tailwind CSS
 - **State Management**: React Hooks
 - **Data Persistence**: LocalStorage + File System (Electron)
+- **Testing**: Vitest (Unit) + Playwright (E2E)
 
 ---
 
@@ -146,7 +158,11 @@ WebBase_Project_Gantt/
 │   ├── index.tsx                 # Entry point
 │   ├── types.ts                  # Type definitions
 │   └── utils.ts                  # Utility functions
-├── docs/                         # Documentation & Reports
+├── e2e/                          # End-to-End Tests
+├── docs/                         # Documentation
+│   ├── guides/                   # User & Developer Guides
+│   ├── records/                  # Reports & Logs
+│   └── architecture/             # Design Docs
 ├── public/                       # Static assets
 │   └── assets/                   # Icons and images
 ├── electron/                     # Electron configuration
