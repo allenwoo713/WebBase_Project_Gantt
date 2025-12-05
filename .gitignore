@@ -32,3 +32,8 @@ release-packager/
 
 # AI Assistant
 
+
+# Test Artifacts
+test-results/
+playwright-report/
+
