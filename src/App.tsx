@@ -6,16 +6,16 @@ import TaskModal from './components/TaskModal';
 import MemberManager from './components/MemberManager';
 import SettingsModal from './components/SettingsModal';
 import FilterPanel from './components/FilterPanel';
-import { addDays, addMonths, addYears, getDatesRange, getWeeksRange, getMonthsRange, getYearsRange, calculateCriticalPath, diffDays, diffProjectDays, addProjectDays, exportTasksToCSV, formatDate, calculateColumnWidth, determineProjectLoadSource } from './utils';
+import { addDays, addMonths, addYears, getDatesRange, getWeeksRange, getMonthsRange, getYearsRange, calculateCriticalPath, diffDays, diffProjectDays, addProjectDays, exportTasksToCSV, formatDate, calculateColumnWidth, determineProjectLoadSource, loadInitialProject } from './utils';
 import {
     Table, Columns, BarChart3, Save, Plus, ChevronLeft, ChevronRight, FolderOpen,
     Users, Settings as SettingsIcon, AlertTriangle, Download, Filter, Maximize, Info, ChevronDown
 } from 'lucide-react';
 
 const STORAGE_KEY = 'progantt-data-v2';
-const APP_VERSION = '1.0.1-gamma';
+const APP_VERSION = '1.0.1-epsilon';
 const APP_AUTHOR = 'Allen Woo';
-const APP_RELEASE_DATE = '2025-12-02';
+const APP_RELEASE_DATE = '2025-12-04';
 
 const INITIAL_MEMBERS: Member[] = [
     { id: 'm1', name: 'Alice', role: 'Project Manager', color: '#3b82f6' },
@@ -69,6 +69,7 @@ const App: React.FC = () => {
     const headerRef = useRef<HTMLDivElement>(null);
     const [ganttContainer, setGanttContainer] = useState<HTMLDivElement | null>(null);
     const saveMenuRef = useRef<HTMLDivElement>(null);
+    const lastManualSave = useRef<number>(0);
     const [containerWidth, setContainerWidth] = useState<number>(1000); // Default width
 
     // Derived State
@@ -282,6 +283,9 @@ const App: React.FC = () => {
                 showNotification(`Failed to save: ${saveResult.error}`, 'error');
             } else {
                 // Success (Direct save)
+                // Explicitly update localStorage to ensure it's in sync immediately
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data, null, 2));
+                lastManualSave.current = Date.now();
                 showNotification('Project saved successfully!', 'success');
             }
         } else {
@@ -309,43 +313,43 @@ const App: React.FC = () => {
                     projectFilename: saveAsResult.filePath.split('\\').pop()?.replace('.json', '')
                 };
                 setSettings(newSettings);
+
                 // Update localStorage
                 const newData = { ...data, settings: newSettings };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(newData, null, 2));
+                lastManualSave.current = Date.now();
+
+                // CRITICAL: Save to the file AGAIN with the updated settings.
+                // The first save (in saveProjectAs) wrote the OLD settings (with old path).
+                // We must overwrite it with the NEW settings so the file knows its own path.
+                await window.electronAPI.saveProject(saveAsResult.filePath, JSON.stringify(newData, null, 2));
+
                 showNotification('Project saved successfully!', 'success');
             }
         } else {
             // Web fallback - same as save (download)
             saveProject();
-        }
+        };
     };
 
     useEffect(() => {
         const initializeProject = async () => {
             const saved = localStorage.getItem(STORAGE_KEY);
-            const source = determineProjectLoadSource(saved);
 
-            if (source === 'file' && window.electronAPI?.isElectron && saved) {
-                // Try to load from saved file path
-                try {
-                    const parsedData = JSON.parse(saved);
-                    const filePath = parsedData.settings?.projectSavePath;
+            if (window.electronAPI) {
+                const { data, error } = await loadInitialProject(saved, window.electronAPI);
 
-                    if (filePath) {
-                        const result = await window.electronAPI.loadSpecificProject(filePath);
-                        if (result.success && result.data) {
-                            loadProjectData(result.data);
-                            return; // Successfully loaded from file
-                        }
-                        // If file load fails, fall through to localStorage
+                if (data) {
+                    loadProjectData(data);
+                    if (error) {
+                        showNotification(error, 'error');
                     }
-                } catch (error) {
-                    console.error('Failed to load from file, falling back to localStorage:', error);
                 }
-            }
-
-            if (source === 'localStorage' && saved) {
-                loadProjectData(saved);
+            } else {
+                // Web Mode
+                if (saved) {
+                    loadProjectData(saved);
+                }
             }
         };
 
@@ -361,6 +365,26 @@ const App: React.FC = () => {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
+
+    // Autosave to localStorage
+    useEffect(() => {
+        const saveData = {
+            tasks,
+            dependencies,
+            members,
+            settings
+        };
+
+        const timeoutId = setTimeout(() => {
+            // Prevent autosave from overwriting a recent manual save (race condition)
+            if (Date.now() - lastManualSave.current < 1000) {
+                return;
+            }
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData, null, 2));
+        }, 1000);
+
+        return () => clearTimeout(timeoutId);
+    }, [tasks, dependencies, members, settings]);
 
     // Close save menu when clicking outside
     useEffect(() => {
@@ -418,7 +442,13 @@ const App: React.FC = () => {
 
                 // Re-serialize with updated settings to pass to loadProjectData
                 const updatedData = { ...parsed, settings: updatedSettings };
-                loadProjectData(JSON.stringify(updatedData));
+                const updatedJson = JSON.stringify(updatedData);
+
+                // Explicitly update localStorage and lastManualSave to ensure persistence
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedData, null, 2));
+                lastManualSave.current = Date.now();
+
+                loadProjectData(updatedJson);
             }
         } else {
             const file = e?.target.files?.[0];

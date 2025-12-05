@@ -870,6 +870,78 @@ This boolean changes the filter button appearance to indicate active filters.
 
 ---
 
+## Persistence Data Flow
+
+ProGantt uses a dual-persistence strategy combining **localStorage** (for auto-save) and **File System** (for project files).
+
+### Data Flow Diagram
+
+```mermaid
+flowchart TD
+    subgraph Runtime["Runtime State"]
+        State["React State<br/>(tasks, dependencies, members, settings)"]
+    end
+
+    subgraph Persistence["Persistence Layer"]
+        LS["localStorage<br/>(progantt-data-v2)"]
+        FS["File System<br/>(.json files)"]
+    end
+
+    subgraph Triggers["Trigger Events"]
+        Change["State Change"]
+        Save["Save / Ctrl+S"]
+        SaveAs["Save As"]
+        Open["Open Project"]
+        Startup["App Startup"]
+    end
+
+    Change -->|"Debounced 1s"| LS
+    Save -->|"Immediate"| FS
+    Save -->|"Immediate"| LS
+    SaveAs -->|"Write twice<br/>(update settings)"| FS
+    SaveAs -->|"Immediate"| LS
+    Open -->|"Read file"| State
+    Open -->|"Update path"| LS
+    Startup -->|"1. Try file path"| FS
+    FS -->|"Success"| State
+    FS -->|"Failure"| LS
+    LS -->|"Fallback"| State
+```
+
+### Startup Load Priority
+
+1. **Check localStorage** for saved settings (including `projectSavePath`)
+2. **If file path exists**: Attempt to load from file system
+3. **If file load fails**: Fall back to localStorage data + show warning
+4. **If no file path**: Load directly from localStorage
+
+### Save Operations
+
+| Operation | File System | localStorage | Notes |
+|-----------|-------------|--------------|-------|
+| **State Change** | ❌ | ✅ (debounced) | Autosave to cache |
+| **Save (Ctrl+S)** | ✅ | ✅ | Immediate sync |
+| **Save As** | ✅ (x2) | ✅ | Write twice to update internal path |
+| **Open Project** | Read only | ✅ | Update cache with new path |
+
+### Race Condition Prevention
+
+To prevent autosave from overwriting manual saves with stale data:
+
+```typescript
+const lastManualSave = useRef<number>(0);
+
+// In Save/Save As:
+lastManualSave.current = Date.now();
+
+// In autosave effect:
+if (Date.now() - lastManualSave.current < 1000) {
+    return; // Skip - manual save just happened
+}
+```
+
+---
+
 ## Design Decisions
 
 ### 1. Why No State Management Library?

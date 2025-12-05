@@ -495,3 +495,51 @@ export const determineProjectLoadSource = (localStorageData: string | null): 'fi
         return 'none';
     }
 };
+
+/**
+ * Loads the initial project data, handling fallback logic.
+ * @param localStorageData The raw string from localStorage
+ * @param electronAPI The electronAPI object (window.electronAPI)
+ * @returns Promise resolving to { data: string, source: 'file' | 'localStorage' | 'none', error?: string }
+ */
+export const loadInitialProject = async (
+    localStorageData: string | null,
+    electronAPI: any
+): Promise<{ data: string | null, source: 'file' | 'localStorage' | 'none', error?: string }> => {
+    const source = determineProjectLoadSource(localStorageData);
+
+    if (source === 'file' && electronAPI?.isElectron) {
+        try {
+            const parsed = JSON.parse(localStorageData!);
+            const filePath = parsed.settings?.projectSavePath;
+
+            if (filePath) {
+                const result = await electronAPI.loadSpecificProject(filePath);
+                if (result.success && result.data) {
+                    return { data: result.data, source: 'file' };
+                }
+                // If file load fails, fall back to localStorage
+                console.warn('Failed to load from file, falling back to localStorage:', result.error);
+                return {
+                    data: localStorageData,
+                    source: 'localStorage',
+                    error: `Failed to load project file (${result.error}). Loaded from local cache.`
+                };
+            }
+        } catch (error: any) {
+            console.error('Error parsing localStorage for file path:', error);
+            // Fallback to localStorage if parsing fails but data exists
+            return {
+                data: localStorageData,
+                source: 'localStorage',
+                error: `Error reading project file configuration. Loaded from local cache.`
+            };
+        }
+    }
+
+    if (source === 'localStorage' || (source === 'file' && !electronAPI?.isElectron)) {
+        return { data: localStorageData, source: 'localStorage' };
+    }
+
+    return { data: null, source: 'none' };
+};

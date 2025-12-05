@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.1-epsilon] - 2025-12-04
+
+### Fixed
+- **Persistence Issue**: Fixed an issue where the application would load stale data (old file path) upon restart. Implemented an autosave mechanism and ensured explicit state updates during save operations to guarantee `localStorage` always reflects the current application state.
+- **Save Race Condition**: Fixed a race condition where the autosave mechanism could overwrite a manual "Save As" operation with stale data if the application was closed immediately after saving. Implemented a timestamp check to prevent autosaves from running immediately after a manual save.
+- **Save As Persistence**: Fixed an issue where using "Save As" would save the *old* file path inside the new file's settings, causing the app to revert to the old file upon restart. Now, the application correctly updates the settings and saves the new file a second time to ensure self-consistency.
+
+## [1.0.1-delta] - 2025-12-03
+
 ## [1.0.1-gamma] - 2025-12-02
 
 ### Fixed

@@ -1,4 +1,4 @@
-import { calculateCriticalPath, diffProjectDays, addProjectDays, getTaskX, getTaskWidth, calculateColumnWidth, determineProjectLoadSource } from './utils';
+import { calculateCriticalPath, diffProjectDays, addProjectDays, getTaskX, getTaskWidth, calculateColumnWidth, determineProjectLoadSource, loadInitialProject } from './utils';
 import { Task, Dependency, ProjectSettings, DependencyType, TaskStatus, Priority, TimeScale } from './types';
 
 // Mock Data Helpers
@@ -261,6 +261,74 @@ async function runTests() {
         });
         const source = determineProjectLoadSource(dataWithWhitespacePath);
         assert(source === 'localStorage', 'Project Load: Whitespace path uses localStorage');
+    }
+
+    console.log('\nRunning loadInitialProject Tests...');
+    const mockData = JSON.stringify({
+        settings: { projectSavePath: 'C:\\test.json' },
+        tasks: [{ id: '1', name: 'Test' }]
+    });
+
+    // Test 22: Load from file success
+    {
+        const mockElectronAPI = {
+            isElectron: true,
+            loadSpecificProject: async () => ({ success: true, data: mockData })
+        };
+        const result = await loadInitialProject(mockData, mockElectronAPI);
+        assert(result.source === 'file', 'loadInitialProject: Loads from file when available');
+        assert(result.data === mockData, 'loadInitialProject: Data matches');
+    }
+
+    // Test 23: Fallback to localStorage on file failure
+    {
+        const mockElectronAPI = {
+            isElectron: true,
+            loadSpecificProject: async () => ({ success: false, error: 'File not found' })
+        };
+        const result = await loadInitialProject(mockData, mockElectronAPI);
+        assert(result.source === 'localStorage', 'loadInitialProject: Fallback to localStorage on failure');
+        assert(result.data === mockData, 'loadInitialProject: Fallback data matches');
+        assert(!!result.error, 'loadInitialProject: Error message present');
+    }
+
+    // Test 24: Web Mode (No Electron)
+    {
+        const result = await loadInitialProject(mockData, null);
+        assert(result.source === 'localStorage', 'loadInitialProject: Web mode uses localStorage');
+    }
+
+    // Test 25: File load returns data (even if corrupted JSON)
+    // Note: loadInitialProject does not parse file data - it just returns it.
+    // Parsing happens later in App.tsx, so this test verifies the handoff.
+    {
+        const mockElectronAPI = {
+            isElectron: true,
+            loadSpecificProject: async () => ({ success: true, data: 'not valid json {{{' })
+        };
+        const result = await loadInitialProject(mockData, mockElectronAPI);
+        // File load succeeded, so source should be 'file' even if data is invalid JSON
+        assert(result.source === 'file' && result.data === 'not valid json {{{',
+            'loadInitialProject: Returns file data as-is (parsing happens later)');
+    }
+
+    // Test 26: Missing settings object in localStorage
+    {
+        const dataWithoutSettings = JSON.stringify({
+            tasks: [{ id: '1', name: 'Test' }]
+        });
+        const source = determineProjectLoadSource(dataWithoutSettings);
+        assert(source === 'localStorage', 'Project Load: Missing settings uses localStorage');
+    }
+
+    // Test 27: Null settings in localStorage
+    {
+        const dataWithNullSettings = JSON.stringify({
+            settings: null,
+            tasks: []
+        });
+        const source = determineProjectLoadSource(dataWithNullSettings);
+        assert(source === 'localStorage', 'Project Load: Null settings uses localStorage');
     }
 
     console.log(`\nResults: ${passed} Passed, ${failed} Failed`);
