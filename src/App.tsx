@@ -7,15 +7,16 @@ import MemberManager from './components/MemberManager';
 import SettingsModal from './components/SettingsModal';
 import FilterPanel from './components/FilterPanel';
 import { addDays, addMonths, addYears, getDatesRange, getWeeksRange, getMonthsRange, getYearsRange, calculateCriticalPath, diffDays, diffProjectDays, addProjectDays, exportTasksToCSV, formatDate, calculateColumnWidth, determineProjectLoadSource, loadInitialProject } from './utils';
+import { parseTasks } from './dataParser';
 import {
     Table, Columns, BarChart3, Save, Plus, ChevronLeft, ChevronRight, FolderOpen,
     Users, Settings as SettingsIcon, AlertTriangle, Download, Filter, Maximize, Info, ChevronDown
 } from 'lucide-react';
 
 const STORAGE_KEY = 'progantt-data-v2';
-const APP_VERSION = '1.0.1-epsilon';
+const APP_VERSION = '1.0.2';
 const APP_AUTHOR = 'Allen Woo';
-const APP_RELEASE_DATE = '2025-12-04';
+const APP_RELEASE_DATE = '2025-12-08';
 
 const INITIAL_MEMBERS: Member[] = [
     { id: 'm1', name: 'Alice', role: 'Project Manager', color: '#3b82f6' },
@@ -198,20 +199,8 @@ const App: React.FC = () => {
         try {
             const data: ProjectData = JSON.parse(jsonString);
 
-            // Validate and migrate data
-            const loadedTasks = (data.tasks || []).map(t => ({
-                ...t,
-                start: new Date(t.start),
-                end: new Date(t.end),
-                // Ensure new fields exist
-                assignments: t.assignments || [],
-                ownerEffort: t.ownerEffort ?? 100,
-                baselineScore: t.baselineScore,
-                score: t.score,
-                deliverable: t.deliverable,
-                role: t.role,
-                description: t.description
-            }));
+            // Parse and migrate task data using dataParser
+            const loadedTasks = parseTasks(data.tasks);
 
             setTasks(loadedTasks);
             setDependencies(data.dependencies || []);

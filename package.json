@@ -1,7 +1,7 @@
 {
   "name": "project-gantt-master",
   "private": true,
-  "version": "1.0.1-epsilon",
+  "version": "1.0.2",
   "author": "Allen Woo",
   "type": "module",
   "main": "electron/main.cjs",
@@ -14,7 +14,7 @@
     "electron": "concurrently \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:pack": "npm run build && electron-builder --dir",
     "electron:dist": "npm run build && electron-builder",
-    "test": "npx tsx src/utils.test.ts",
+    "test": "npx tsx src/utils.test.ts && npx tsx src/dataParser.test.ts",
     "test:e2e": "npx playwright test"
   },
   "build": {
@@ -22,7 +22,9 @@
     "productName": "ProGantt",
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      "!e2e",
+      "!test-results"
     ],
     "directories": {
       "output": "release"

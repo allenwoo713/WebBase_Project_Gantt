@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.2] - 2025-12-08
+
+### Fixed
+- **Date Loading Crash**: Fixed a `TypeError: getTime is not a function` crash that occurred when loading projects containing "Actual Start" or "Actual End" dates from saved files. Implemented a robust `dataParser` to ensure date strings are correctly converted to Date objects upon retrieval.
+- **Build Workflow**: Fixed an issue where `test-results` and `e2e` directories were incorrectly included in the packaged application. Updated build scripts to properly exclude these development artifacts.
+
 ## [1.0.1-epsilon] - 2025-12-04
 
 ### Fixed

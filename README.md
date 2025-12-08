@@ -2,7 +2,7 @@
 
 **A powerful, feature-rich Gantt chart application for project management**
 
-**Version:** 1.0.1-epsilon | **Author:** Allen Woo | **Released:** 2025-12-05
+**Version:** 1.0.2 | **Author:** Allen Woo | **Released:** 2025-12-08
 
 ---
 
