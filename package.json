@@ -1,7 +1,7 @@
 {
   "name": "project-gantt-master",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.3-alpha",
   "author": "Allen Woo",
   "type": "module",
   "main": "electron/main.cjs",
@@ -14,6 +14,7 @@
     "electron": "concurrently \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:pack": "npm run build && electron-builder --dir",
     "electron:dist": "npm run build && electron-builder",
+    "package-win": "npm run build && electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite --icon=public/assets/icon.ico --ignore=\"^/src$\" --ignore=\"^/node_modules$\" --ignore=\"^/.git$\" --ignore=\"^/.vscode$\" --ignore=\"^/release$\" --ignore=\"^/release-packager$\" --ignore=\"^/public$\" --ignore=\"^/.cache$\" --ignore=\"^/.agent$\" --ignore=\"^/docs$\" --ignore=\"\\.tsx$\" --ignore=\"\\.ts$\" --ignore=\"^/.*\\.md$\" --ignore=\"vite\\.config\" --ignore=\"tsconfig\" --ignore=\"^/index\\.html$\" --ignore=\"^/metadata\\.json$\" --ignore=\"^/test-results$\" --ignore=\"^/e2e$\"",
     "test": "npx tsx src/utils.test.ts && npx tsx src/dataParser.test.ts",
     "test:e2e": "npx playwright test"
   },

@@ -10,13 +10,18 @@ import { addDays, addMonths, addYears, getDatesRange, getWeeksRange, getMonthsRa
 import { parseTasks } from './dataParser';
 import {
     Table, Columns, BarChart3, Save, Plus, ChevronLeft, ChevronRight, FolderOpen,
-    Users, Settings as SettingsIcon, AlertTriangle, Download, Filter, Maximize, Info, ChevronDown
+    Users, Settings as SettingsIcon, AlertTriangle, Download, Filter, Maximize, Info, ChevronDown,
+    Brain, Sparkles
 } from 'lucide-react';
+import { AISettings, AIAnalysisReport } from './types';
+import { AIService } from './services/AIService';
+import AISettingsModal from './components/AISettingsModal';
+import AIReportModal from './components/AIReportModal';
 
 const STORAGE_KEY = 'progantt-data-v2';
-const APP_VERSION = '1.0.2';
+export const APP_VERSION = '1.0.3-alpha';
 const APP_AUTHOR = 'Allen Woo';
-const APP_RELEASE_DATE = '2025-12-08';
+export const APP_RELEASE_DATE = '2025-12-16';
 
 const INITIAL_MEMBERS: Member[] = [
     { id: 'm1', name: 'Alice', role: 'Project Manager', color: '#3b82f6' },
@@ -65,6 +70,15 @@ const App: React.FC = () => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isAboutOpen, setIsAboutOpen] = useState(false);
     const [isSaveMenuOpen, setIsSaveMenuOpen] = useState(false);
+
+    // AI State
+    const [isAISettingsOpen, setIsAISettingsOpen] = useState(false);
+    const [isAIReportOpen, setIsAIReportOpen] = useState(false);
+    const [aiSettings, setAiSettings] = useState<AISettings>({
+        provider: 'openai', apiKey: '', model: 'gpt-3.5-turbo'
+    });
+    const [aiReport, setAiReport] = useState<AIAnalysisReport | null>(null);
+    const [isScanning, setIsScanning] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const headerRef = useRef<HTMLDivElement>(null);
@@ -324,6 +338,25 @@ const App: React.FC = () => {
     useEffect(() => {
         const initializeProject = async () => {
             const saved = localStorage.getItem(STORAGE_KEY);
+            const savedAISettings = localStorage.getItem('progantt-ai-settings');
+            if (window.electronAPI) {
+                const result = await window.electronAPI.loadSettings();
+                if (result.success && result.data && result.data.activeProvider && result.data.aiSettingsMap) {
+                    const activeP = result.data.activeProvider;
+                    const config = result.data.aiSettingsMap[activeP];
+                    setAiSettings({
+                        provider: activeP,
+                        ...config
+                    });
+                } else if (savedAISettings) {
+                    // Fallback to legacy single settings if new format not found
+                    try { setAiSettings(JSON.parse(savedAISettings)); } catch (e) { }
+                }
+            } else {
+                if (savedAISettings) {
+                    try { setAiSettings(JSON.parse(savedAISettings)); } catch (e) { }
+                }
+            }
 
             if (window.electronAPI) {
                 const { data, error } = await loadInitialProject(saved, window.electronAPI);
@@ -560,6 +593,30 @@ const App: React.FC = () => {
         setViewStartDate(today);
     };
 
+    // AI Handlers
+    const handleAIScan = async () => {
+        if (!aiSettings.apiKey) {
+            setIsAISettingsOpen(true);
+            showNotification('Please configure AI settings first', 'error');
+            return;
+        }
+
+        setIsScanning(true);
+        try {
+            const service = new AIService(aiSettings);
+            const report = await service.scanDependencies(tasks);
+            setAiReport(report);
+            setIsAIReportOpen(true);
+            showNotification('AI Analysis Complete', 'success');
+        } catch (error: any) {
+            showNotification(`Scan Failed: ${error.message}`, 'error');
+        } finally {
+            setIsScanning(false);
+        }
+    };
+
+
+
     return (
         <div className="flex flex-col h-screen bg-white">
             {/* Notification Toast */}
@@ -600,6 +657,28 @@ const App: React.FC = () => {
                     <button onClick={() => setIsSettingsOpen(true)} className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
                         <SettingsIcon size={16} className="mr-2" /> Settings
                     </button>
+
+
+
+                    <div className="h-6 w-px bg-gray-200 mx-2"></div>
+
+                    <div className="flex bg-purple-50 rounded-lg p-1 border border-purple-100">
+                        <button
+                            onClick={handleAIScan}
+                            disabled={isScanning}
+                            className={`flex items-center px-3 py-1.5 text-sm font-bold text-purple-700 rounded-md hover:bg-purple-100 transition-colors ${isScanning ? 'opacity-50 cursor-wait' : ''}`}
+                        >
+                            {isScanning ? <Sparkles size={16} className="mr-2 animate-spin" /> : <Brain size={16} className="mr-2" />}
+                            {isScanning ? 'Scanning...' : 'AI Scan'}
+                        </button>
+                        <button
+                            onClick={() => setIsAISettingsOpen(true)}
+                            className="p-1.5 ml-1 text-purple-400 hover:text-purple-700 rounded-md hover:bg-purple-100"
+                            title="AI Settings"
+                        >
+                            <SettingsIcon size={14} />
+                        </button>
+                    </div>
 
                     <label className="flex items-center space-x-2 text-sm text-gray-700 bg-gray-100 px-3 py-1.5 rounded-md hover:bg-gray-200 cursor-pointer">
                         <input
@@ -749,6 +828,25 @@ const App: React.FC = () => {
                     </button>
                 </div>
             </header>
+
+            {/* AI Modals */}
+            <AISettingsModal
+                isOpen={isAISettingsOpen}
+                onClose={() => setIsAISettingsOpen(false)}
+                onSave={(s) => {
+                    setAiSettings(s);
+                    // Persist keys if needed, but for now just state
+                    localStorage.setItem('progantt-ai-settings', JSON.stringify(s));
+                }}
+                currentSettings={aiSettings}
+            />
+            <AIReportModal
+                isOpen={isAIReportOpen}
+                onClose={() => setIsAIReportOpen(false)}
+                report={aiReport}
+                onSuccess={(msg) => showNotification(msg, 'success')}
+                onError={(msg) => showNotification(msg, 'error')}
+            />
 
             {/* Filter Panel */}
             <FilterPanel
@@ -923,11 +1021,6 @@ function getWeekNumber(d: Date): number {
     return weekNo;
 }
 
-// Helper for isFilterActive
-const isFilterActive = false; // Placeholder if not used, but let's check if we need it.
-// Actually, isFilterActive is not defined in the component state, but used in JSX.
-// Let's add it to the component state or derive it.
-// Looking at previous code, it wasn't there. But `filteredTasks` logic implies filtering.
-// Let's derive it.
+
 
 export default App;

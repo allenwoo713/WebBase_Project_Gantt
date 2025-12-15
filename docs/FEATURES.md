@@ -4,9 +4,9 @@
 
 ProGantt is a modern, desktop/web-based project management tool that provides comprehensive Gantt chart visualization and task management capabilities.
 
-**Version**: 1.0.1-beta  
+**Version**: 1.0.3-alpha  
 **Author**: Allen Woo  
-**Release Date**: 2025-12-02
+**Release Date**: 2025-12-16
 
 ---
 
@@ -130,6 +130,18 @@ ProGantt is a modern, desktop/web-based project management tool that provides co
 - Native file dialogs
 - System integration
 - No installation required
+
+#### 13. **Cost Management**
+- **Member Rates**: Define hourly rates for each team member
+- **Plan Cost**: Calculated from (Duration * Hours * Rate * Effort)
+- **Actual Cost**: Calculated from (Actual Duration * Hours * Rate * Effort)
+- **Visualization**: Displayed in Task List columns and exported to CSV
+
+#### 14. **AI Dependency Scanner**
+- **Smart Analysis**: Scans task names to suggest logical dependencies
+- **Multi-Provider**: Supports OpenAI, Anthropic (Claude), Gemini, and Zhipu AI
+- **Report Generation**: Exports findings to a Markdown report
+- **Context Aware**: Understands basic project management semantics
 
 ---
 

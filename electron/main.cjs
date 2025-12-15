@@ -128,3 +128,52 @@ ipcMain.handle('load-specific-project', async (event, filePath) => {
         return { success: false, error: error.message };
     }
 });
+
+// Settings Persistence
+ipcMain.handle('save-settings', async (event, settings) => {
+    try {
+        const settingsPath = isDev
+            ? path.join(__dirname, '../settings.json')
+            : path.join(path.dirname(process.execPath), 'settings.json');
+
+        fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('load-settings', async () => {
+    try {
+        const settingsPath = isDev
+            ? path.join(__dirname, '../settings.json')
+            : path.join(path.dirname(process.execPath), 'settings.json');
+
+        if (fs.existsSync(settingsPath)) {
+            const data = fs.readFileSync(settingsPath, 'utf-8');
+            return { success: true, data: JSON.parse(data) };
+        }
+        return { success: true, data: null };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+// Generic Save File (Save Dialog with custom filters)
+ipcMain.handle('save-file', async (event, { defaultPath, data, filters }) => {
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+        title: 'Save File',
+        defaultPath: defaultPath || 'file.txt',
+        filters: filters || [{ name: 'All Files', extensions: ['*'] }],
+    });
+
+    if (canceled || !filePath) {
+        return { success: false, canceled: true };
+    }
+
+    try {
+        fs.writeFileSync(filePath, data, 'utf-8');
+        return { success: true, filePath };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});

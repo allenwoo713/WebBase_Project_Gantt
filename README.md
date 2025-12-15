@@ -2,7 +2,7 @@
 
 **A powerful, feature-rich Gantt chart application for project management**
 
-**Version:** 1.0.2 | **Author:** Allen Woo | **Released:** 2025-12-08
+**Version:** 1.0.3-alpha | **Author:** Allen Woo | **Released:** 2025-12-16
 
 ---
 
@@ -22,8 +22,10 @@
 - **Member Export**: Export team member data to CSV format
 - **Task Assignment**: Assign tasks to owners and team members with effort tracking
 - **Role-Based Organization**: Organize tasks by roles (PM, Developer, Designer, etc.)
+- **Cost Management**: Track Plan Cost and Actual Cost based on member rates and task effort
 
 ###  Advanced Features
+- **AI Dependency Scanner**: AI-powered analysis to detect missing dependencies based on task names
 - **Progress Tracking**: Monitor task completion with visual progress bars
 - **Priority Levels**: Categorize tasks as High, Medium, or Low priority
 - **Task Status**: Track tasks through Not Started, Ongoing, and Done states
@@ -34,6 +36,7 @@
 ###  Data Management
 - **Auto-Save**: Automatic saving to browser localStorage
 - **Project Export/Import**: Save and load projects as JSON files
+- **AI Reports**: Export AI analysis reports to Markdown
 - **CSV Export**: Export task data to CSV format (Table view) with full field support (including Actual Dates)
 - **Electron Integration**: Desktop app with native file system access
 - **Robust Persistence**: Dual-layer persistence (File System + localStorage) ensures data safety

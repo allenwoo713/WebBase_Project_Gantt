@@ -338,10 +338,10 @@ export const calculateCriticalPath = (tasks: Task[], dependencies: Dependency[],
 
 export const exportTasksToCSV = async (tasks: Task[], members: Member[], dependencies: Dependency[], settings: ProjectSettings): Promise<{ success: boolean; canceled?: boolean }> => {
     // Headers - Reordered as requested
-    // ID, Name, Start, End, Actual Start, Actual End, Duration, Hours, Progress, Status, Priority, Owner, Role, Assignments, Predecessors, Deliverable, Base Score, Score
+    // ID, Name, Start, End, Actual Start, Actual End, Duration, Hours, Plan Cost, Actual Cost, Progress, Status, Priority, Owner, Role, Assignments, Predecessors, Deliverable, Base Score, Score
     const headers = [
         'ID', 'Name', 'Start Date', 'End Date', 'Actual Start', 'Actual End',
-        'Duration', 'Hours', 'Progress', 'Status', 'Priority',
+        'Duration', 'Hours', 'Plan Cost', 'Actual Cost', 'Progress', 'Status', 'Priority',
         'Owner', 'Role', 'Assignments', 'Predecessors',
         'Deliverable', 'Base Score', 'Score'
     ];
@@ -367,6 +367,8 @@ export const exportTasksToCSV = async (tasks: Task[], members: Member[], depende
         const workingHours = settings.workingDayHours || 8;
         const hours = ((totalEffort / 100) * task.duration * workingHours).toFixed(1);
 
+        const costs = calculateTaskCost(task, members, settings);
+
         return [
             index + 1, // ID as row number (1-based)
             `"${task.name.replace(/"/g, '""')}"`,
@@ -376,6 +378,8 @@ export const exportTasksToCSV = async (tasks: Task[], members: Member[], depende
             formatDate(task.actualEnd || new Date(NaN)),   // Handle undefined
             task.duration,
             hours,
+            costs.plan,
+            costs.actual,
             `${task.progress}%`,
             task.status,
             task.priority,
@@ -542,4 +546,62 @@ export const loadInitialProject = async (
     }
 
     return { data: null, source: 'none' };
+};
+
+export const calculateTaskCost = (task: Task, members: Member[], settings: ProjectSettings): { plan: number, actual: number } => {
+    const workingHours = settings.workingDayHours || 8;
+
+    // Helper to get rate for a member ID
+    const getRate = (memberId?: string): number => {
+        if (!memberId) return 0;
+        const member = members.find(m => m.id === memberId);
+        return member?.hourRate || 0;
+    };
+
+    // 1. Calculate Plan Cost
+    // Formula: Duration (days) * Working Hours * Rate * (Effort / 100)
+    let planCost = 0;
+
+    // Owner cost
+    if (task.ownerId) {
+        const rate = getRate(task.ownerId);
+        const effort = task.ownerEffort || 0;
+        planCost += (task.duration * workingHours * rate * (effort / 100));
+    }
+
+    // Assignees cost
+    if (task.assignments) {
+        task.assignments.forEach(assign => {
+            const rate = getRate(assign.memberId);
+            planCost += (task.duration * workingHours * rate * (assign.effort / 100));
+        });
+    }
+
+    // 2. Calculate Actual Cost
+    // Only if actualStart and actualEnd are present
+    let actualCost = 0;
+    if (task.actualStart && task.actualEnd) {
+        // Calculate actual duration in working days
+        const actualDuration = diffProjectDays(task.actualStart, task.actualEnd, settings);
+
+        // Owner cost
+        if (task.ownerId) {
+            const rate = getRate(task.ownerId);
+            const effort = task.ownerEffort || 0;
+            actualCost += (actualDuration * workingHours * rate * (effort / 100));
+        }
+
+        // Assignees cost
+        if (task.assignments) {
+            task.assignments.forEach(assign => {
+                const rate = getRate(assign.memberId);
+                actualCost += (actualDuration * workingHours * rate * (assign.effort / 100));
+            });
+        }
+    }
+
+    return {
+        plan: Math.round(planCost * 100) / 100,
+        actual: Math.round(actualCost * 100) / 100
+    };
 };

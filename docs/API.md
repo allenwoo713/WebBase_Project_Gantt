@@ -129,6 +129,7 @@ interface Member {
     email?: string;                     // Email address
     phone?: string;                     // Phone number
     color: string;                      // Avatar color (hex)
+    hourRate?: number;                  // Hourly rate for cost calculation
 }
 ```
 
@@ -198,6 +199,39 @@ interface FilterState {
         from: string;
         to: string;
     };
+}
+```
+
+---
+
+### AI & Export Interfaces
+
+#### `ElectronAPI`
+Interface for Electron IPC communication.
+
+```typescript
+interface ElectronAPI {
+    isElectron: boolean;
+    loadProject: () => Promise<LoadResult>;
+    saveProject: (path: string, data: string) => Promise<SaveResult>;
+    saveProjectAs: (data: string) => Promise<SaveAsResult>;
+    loadSpecificProject: (path: string) => Promise<LoadResult>;
+    exportCSV: (defaultPath: string, data: string) => Promise<SaveAsResult>;
+    saveSettings: (settings: ProjectSettings) => Promise<SaveResult>;
+    loadSettings: () => Promise<LoadSettingsResult>;
+    saveFile: (defaultPath: string, data: string, filters?: Array<{name: string, extensions: string[]}>) => Promise<SaveAsResult>;
+}
+```
+
+#### `AISettings`
+Configuration for AI service providers.
+
+```typescript
+interface AISettings {
+    provider: 'openai' | 'anthropic' | 'gemini' | 'zhipu';
+    apiKey: string;
+    baseUrl?: string;
+    model?: string;
 }
 ```
 

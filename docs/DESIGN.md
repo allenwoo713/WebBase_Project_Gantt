@@ -797,6 +797,109 @@ const filteredTasks = useMemo(() => {
             !filterState.statuses.includes(task.status || TaskStatus.NotStarted)) {
             return false;
         }
+        return true;
+    });
+}, [tasks, filterState]);
+```
+
+---
+
+## Cost Calculation
+
+### Algorithm: `calculateTaskCost(task, members, settings)`
+
+Calculates plan and actual costs based on member rates and time effort.
+
+#### Formula
+
+- **Plan Cost** = `Scheduled Duration (Hours) × Member Rate × Effort %`
+- **Actual Cost** = `Actual Duration (Hours) × Member Rate × Effort %`
+
+Where:
+- `Duration (Hours)` = `Working Days × Working Hours per Day`
+- `Total Cost` = `Owner Cost + Σ(Assignee Costs)`
+
+#### Implementation
+
+```typescript
+export const calculateTaskCost = (task: Task, members: Member[], settings: ProjectSettings) => {
+    const workingHours = settings.workingDayHours || 8;
+    
+    // Helper to get rate
+    const getRate = (id) => members.find(m => m.id === id)?.hourRate || 0;
+
+    // 1. Plan Cost
+    let planCost = 0;
+    // Owner
+    if (task.ownerId) {
+        planCost += (task.duration * workingHours * getRate(task.ownerId) * (task.ownerEffort/100));
+    }
+    // Assignees
+    task.assignments?.forEach(a => {
+        planCost += (task.duration * workingHours * getRate(a.memberId) * (a.effort/100));
+    });
+
+    // 2. Actual Cost (only if actual dates exist)
+    let actualCost = 0;
+    if (task.actualStart && task.actualEnd) {
+        const actualDuration = diffProjectDays(task.actualStart, task.actualEnd, settings);
+        // ... similar calculation using actualDuration
+    }
+
+    return { plan: planCost, actual: actualCost };
+};
+```
+    });
+}, [tasks, filterState]);
+```
+
+---
+
+## Cost Calculation
+
+### Algorithm: `calculateTaskCost(task, members, settings)`
+
+Calculates plan and actual costs based on member rates and time effort.
+
+#### Formula
+
+- **Plan Cost** = `Scheduled Duration (Hours) × Member Rate × Effort %`
+- **Actual Cost** = `Actual Duration (Hours) × Member Rate × Effort %`
+
+Where:
+- `Duration (Hours)` = `Working Days × Working Hours per Day`
+- `Total Cost` = `Owner Cost + Σ(Assignee Costs)`
+
+#### Implementation
+
+```typescript
+export const calculateTaskCost = (task: Task, members: Member[], settings: ProjectSettings) => {
+    const workingHours = settings.workingDayHours || 8;
+    
+    // Helper to get rate
+    const getRate = (id) => members.find(m => m.id === id)?.hourRate || 0;
+
+    // 1. Plan Cost
+    let planCost = 0;
+    // Owner
+    if (task.ownerId) {
+        planCost += (task.duration * workingHours * getRate(task.ownerId) * (task.ownerEffort/100));
+    }
+    // Assignees
+    task.assignments?.forEach(a => {
+        planCost += (task.duration * workingHours * getRate(a.memberId) * (a.effort/100));
+    });
+
+    // 2. Actual Cost (only if actual dates exist)
+    let actualCost = 0;
+    if (task.actualStart && task.actualEnd) {
+        const actualDuration = diffProjectDays(task.actualStart, task.actualEnd, settings);
+        // ... similar calculation using actualDuration
+    }
+
+    return { plan: planCost, actual: actualCost };
+};
+```
         
         if (filterState.priorities.length > 0 && 
             !filterState.priorities.includes(task.priority || Priority.Medium)) {

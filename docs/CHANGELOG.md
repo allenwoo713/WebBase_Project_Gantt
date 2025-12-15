@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.3-alpha] - 2025-12-16
+
+### Added
+- **Cost Management**: Added `hourRate` attribute to Team Members. Introduced "Plan Cost" and "Actual Cost" columns in the Task List, calculated based on member rates and effort (Hours * Rate).
+  - "Plan Cost" uses scheduled duration and effort.
+  - "Actual Cost" uses "Actual Start/End" dates if available.
+  - CSV Export now includes these cost fields.
+- **AI Dependency Scanner**: Added an AI-powered dependency analysis tool.
+  - Supports Zhipu AI provider.
+  - Scans task names to suggest missing dependencies based on semantic context.
+  - Generates and exports a Markdown report of the analysis.
+- **Electron IPC**: Added a generic `save-file` IPC handler to support saving any file type with native dialogs.
+
+### Fixed
+- **MemberManager UI**: Fixed a misalignment issue where a duplicate "Email" header caused columns to shift.
+- **AI Report Export**: Improved reliability by replacing the deprecated Blob approach with a robust native "Save File" dialog when running in Electron. Also ensured the success toast only appears after a successful save action.
+
 ## [1.0.2] - 2025-12-08
 
 ### Fixed

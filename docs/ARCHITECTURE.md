@@ -48,6 +48,7 @@ ProGantt is a desktop and web-based project management application built with Re
 │  │  │  - Date calculations        │  │  │
 │  │  │  - Critical path analysis   │  │  │
 │  │  │  - CSV export               │  │  │
+│  │  │  - AI Service (LLM Integration)│  │  │
 │  │  └─────────────────────────────┘  │  │
 │  └───────────────────────────────────┘  │
 │  ┌───────────────────────────────────┐  │
