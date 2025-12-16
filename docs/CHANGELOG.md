@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.0.3-alpha] - 2025-12-16
+
+### Added
+- **Cost Management**: Added `hourRate` attribute to Team Members. Introduced "Plan Cost" and "Actual Cost" columns in the Task List, calculated based on member rates and effort (Hours * Rate).
+  - "Plan Cost" uses scheduled duration and effort.
+  - "Actual Cost" uses "Actual Start/End" dates if available.
+  - CSV Export now includes these cost fields.
+- **AI Dependency Scanner**: Added an AI-powered dependency analysis tool.
+  - Supports Zhipu AI provider.
+  - Scans task names to suggest missing dependencies based on semantic context.
+  - Generates and exports a Markdown report of the analysis.
+- **Electron IPC**: Added a generic `save-file` IPC handler to support saving any file type with native dialogs.
+
+### Fixed
+- **MemberManager UI**: Fixed a misalignment issue where a duplicate "Email" header caused columns to shift.
+- **AI Report Export**: Improved reliability by replacing the deprecated Blob approach with a robust native "Save File" dialog when running in Electron. Also ensured the success toast only appears after a successful save action.
+
+## [1.0.2] - 2025-12-08
+
+### Fixed
+- **Date Loading Crash**: Fixed a `TypeError: getTime is not a function` crash that occurred when loading projects containing "Actual Start" or "Actual End" dates from saved files. Implemented a robust `dataParser` to ensure date strings are correctly converted to Date objects upon retrieval.
+- **Build Workflow**: Fixed an issue where `test-results` and `e2e` directories were incorrectly included in the packaged application. Updated build scripts to properly exclude these development artifacts.
+
 ## [1.0.1-epsilon] - 2025-12-04
 
 ### Fixed

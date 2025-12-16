@@ -56,8 +56,8 @@ const MemberManager: React.FC<MemberManagerProps> = ({ members, isOpen, onClose,
                     <div className="flex items-center gap-2">
                         <button
                             onClick={async () => {
-                                const headers = ['ID', 'Name', 'Role', 'Email', 'Phone', 'Color'];
-                                const rows = members.map(m => [m.id, m.name, m.role, m.email || '', m.phone || '', m.color || '']);
+                                const headers = ['ID', 'Name', 'Role', 'Email', 'Phone', 'Rate', 'Color'];
+                                const rows = members.map(m => [m.id, m.name, m.role, m.email || '', m.phone || '', m.hourRate || 0, m.color || '']);
                                 const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
 
                                 if (window.electronAPI?.isElectron) {
@@ -89,7 +89,7 @@ const MemberManager: React.FC<MemberManagerProps> = ({ members, isOpen, onClose,
                     {/* Add New */}
                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6 shadow-sm">
                         <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Add New Member</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                        <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
                             <div className="md:col-span-1">
                                 <label className="text-xs font-medium text-gray-500 block mb-1">Name</label>
                                 <div className={wrapperClass}>
@@ -126,6 +126,15 @@ const MemberManager: React.FC<MemberManagerProps> = ({ members, isOpen, onClose,
                                     />
                                 </div>
                             </div>
+                            <div className="md:col-span-1">
+                                <label className="text-xs font-medium text-gray-500 block mb-1">Rate ($/hr)</label>
+                                <div className={wrapperClass}>
+                                    <input
+                                        type="number" placeholder="0" className={inputClass}
+                                        value={newMember.hourRate || ''} onChange={e => setNewMember({ ...newMember, hourRate: parseFloat(e.target.value) || 0 })}
+                                    />
+                                </div>
+                            </div>
                             <button
                                 onClick={handleAdd}
                                 disabled={!newMember.name}
@@ -146,6 +155,7 @@ const MemberManager: React.FC<MemberManagerProps> = ({ members, isOpen, onClose,
                                     <th className="px-4 py-3">Role</th>
                                     <th className="px-4 py-3">Email</th>
                                     <th className="px-4 py-3">Phone</th>
+                                    <th className="px-4 py-3 text-right">Rate ($/hr)</th>
                                     <th className="px-4 py-3 w-20 text-center">Action</th>
                                 </tr>
                             </thead>
@@ -192,6 +202,13 @@ const MemberManager: React.FC<MemberManagerProps> = ({ members, isOpen, onClose,
                                                 className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none py-1 text-sm text-gray-600"
                                             />
                                         </td>
+                                        <td className="px-4 py-2 text-right">
+                                            <input
+                                                type="number" value={m.hourRate || 0}
+                                                onChange={e => updateField(m.id, 'hourRate', e.target.value)}
+                                                className="w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none py-1 text-sm text-gray-600 text-right"
+                                            />
+                                        </td>
                                         <td className="px-4 py-2 text-center">
                                             {deleteConfirmId === m.id ? (
                                                 <div className="flex items-center justify-center gap-1">
@@ -221,7 +238,7 @@ const MemberManager: React.FC<MemberManagerProps> = ({ members, isOpen, onClose,
                                     </tr>
                                 ))}
                                 {members.length === 0 && (
-                                    <tr><td colSpan={6} className="p-8 text-center text-gray-400 italic">No members found. Add one above.</td></tr>
+                                    <tr><td colSpan={7} className="p-8 text-center text-gray-400 italic">No members found. Add one above.</td></tr>
                                 )}
                             </tbody>
                         </table>

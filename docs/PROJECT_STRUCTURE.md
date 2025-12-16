@@ -16,7 +16,10 @@ WebBase_Project_Gantt/
 │   ├── index.tsx                # 应用入口文件
 │   ├── types.ts                 # TypeScript 类型定义
 │   ├── utils.ts                 # 工具函数
-│   └── utils.test.ts            # 工具函数单元测试
+│   ├── utils.test.ts            # 工具函数单元测试
+│   ├── services/                # 服务层
+│   │   ├── AIService.ts         # AI 服务集成 (OpenAI/Claude/Gemini/Zhipu)
+│   │   └── AIService.test.ts    # AI 服务测试
 │
 ├── public/                       # 公共资源目录
 │   └── assets/                  # 静态资源

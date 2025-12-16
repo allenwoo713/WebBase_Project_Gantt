@@ -6,5 +6,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     loadProject: () => ipcRenderer.invoke('load-project'),
     loadSpecificProject: (filePath) => ipcRenderer.invoke('load-specific-project', filePath),
     exportCSV: (defaultPath, data) => ipcRenderer.invoke('export-csv', { defaultPath, data }),
+    saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
+    saveFile: (defaultPath, data, filters) => ipcRenderer.invoke('save-file', { defaultPath, data, filters }),
+    loadSettings: () => ipcRenderer.invoke('load-settings'),
     isElectron: true,
 });

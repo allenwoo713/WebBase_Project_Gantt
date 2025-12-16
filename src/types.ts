@@ -47,6 +47,7 @@ export interface Member {
   email?: string;
   phone?: string;
   color: string; // Avatar bg color
+  hourRate?: number; // Hourly rate for cost calculation
 }
 
 export interface TaskAssignment {
@@ -114,6 +115,29 @@ export interface FilterState {
   dateRangeEnd: { from: string; to: string };
 }
 
+export interface AISettings {
+  provider: 'openai' | 'gemini' | 'anthropic' | 'zhipu';
+  apiKey: string;
+  baseUrl?: string; // Optional custom URL
+  model: string;
+}
+
+export interface DependencySuggestion {
+  sourceId: string;
+  targetId: string;
+  sourceName: string;
+  targetName: string;
+  reason: string;
+  confidence: 'High' | 'Medium' | 'Low';
+}
+
+export interface AIAnalysisReport {
+  summary: string;
+  suggestions: DependencySuggestion[];
+  issues: string[]; // Circular or logical gaps
+  timestamp: number;
+}
+
 declare global {
   interface Window {
     electronAPI?: {
@@ -122,6 +146,9 @@ declare global {
       loadProject: () => Promise<{ success: boolean; filePath?: string; data?: string; canceled?: boolean; error?: string }>;
       loadSpecificProject: (filePath: string) => Promise<{ success: boolean; filePath?: string; data?: string; error?: string }>;
       exportCSV: (defaultPath: string, data: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
+      saveSettings: (settings: any) => Promise<{ success: boolean; error?: string }>;
+      saveFile: (defaultPath: string, data: string, filters?: { name: string; extensions: string[] }[]) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
+      loadSettings: () => Promise<{ success: boolean; data?: any; error?: string }>;
       isElectron: boolean;
     };
   }

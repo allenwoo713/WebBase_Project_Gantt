@@ -331,6 +331,58 @@ async function runTests() {
         assert(source === 'localStorage', 'Project Load: Null settings uses localStorage');
     }
 
+    console.log('\nRunning Cost Calculation Tests...');
+    const { calculateTaskCost } = await import('./utils');
+    // Mock Members
+    const members = [
+        { id: 'm1', name: 'Alice', role: 'Dev', color: 'red', hourRate: 100 },
+        { id: 'm2', name: 'Bob', role: 'QA', color: 'blue', hourRate: 50 }
+    ];
+
+    // Test 28: Plan Cost - Simple
+    {
+        const task: Task = {
+            ...createMockTask('T1', 1, 5), // 5 days
+            ownerId: 'm1',
+            ownerEffort: 100
+        };
+        // 5 days * 8 hours * 100 rate * 1.0 effort = 4000
+        const costs = calculateTaskCost(task, members, mockSettings);
+        assert(costs.plan === 4000, `Plan Cost Simple: Expected 4000, got ${costs.plan}`);
+    }
+
+    // Test 29: Plan Cost - Partial Effort & Assignees
+    {
+        const task: Task = {
+            ...createMockTask('T2', 1, 5), // 5 days
+            ownerId: 'm1',
+            ownerEffort: 50, // 50% of 100 rate = $50/hr equivalent
+            assignments: [
+                { memberId: 'm2', effort: 50 } // 50% of 50 rate = $25/hr equivalent
+            ]
+        };
+        // Owner: 5 * 8 * 100 * 0.5 = 2000
+        // Assignee: 5 * 8 * 50 * 0.5 = 1000
+        // Total: 3000
+        const costs = calculateTaskCost(task, members, mockSettings);
+        assert(costs.plan === 3000, `Plan Cost Partial: Expected 3000, got ${costs.plan}`);
+    }
+
+    // Test 30: Actual Cost
+    {
+        const task: Task = {
+            ...createMockTask('T3', 1, 5),
+            ownerId: 'm1',
+            ownerEffort: 100,
+            actualStart: createDate(1), // Mon
+            actualEnd: createDate(3)   // Wed (3 days)
+        };
+        // Plan: 5 * 8 * 100 = 4000
+        // Actual: 3 * 8 * 100 = 2400
+        const costs = calculateTaskCost(task, members, mockSettings);
+        assert(costs.actual === 2400, `Actual Cost: Expected 2400, got ${costs.actual}`);
+    }
+
     console.log(`\nResults: ${passed} Passed, ${failed} Failed`);
     if (failed > 0) process.exit(1);
 }

@@ -67,7 +67,7 @@ Write-Output "Icon path: $iconPath"
 **Command (use absolute path for icon):**
 
 ```bash
-npx electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite --icon="D:\python_workspace\Claude_Project\WebBase_Project_Gantt\public\assets\icon.ico" --ignore="^/src$" --ignore="^/node_modules$" --ignore="^/.git" --ignore="^/.vscode" --ignore="^/release$" --ignore="^/release-packager$" --ignore="^/public$" --ignore="^/.cache$" --ignore="^/.agent$" --ignore="^/docs$" --ignore="\.tsx$" --ignore="\.ts$" --ignore="^/.*\.md$" --ignore="vite\.config" --ignore="tsconfig" --ignore="^/index\.html$" --ignore="^/metadata\.json$"
+npx electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite --icon="D:\python_workspace\Claude_Project\WebBase_Project_Gantt\public\assets\icon.ico" --ignore="^/src$" --ignore="^/node_modules$" --ignore="^/.git" --ignore="^/.vscode" --ignore="^/release$" --ignore="^/release-packager$" --ignore="^/public$" --ignore="^/.cache$" --ignore="^/.agent$" --ignore="^/docs$" --ignore="\.tsx$" --ignore="\.ts$" --ignore="^/.*\.md$" --ignore="vite\.config" --ignore="tsconfig" --ignore="^/index\.html$" --ignore="^/metadata\.json$" --ignore="^/test-results$" --ignore="^/e2e$"
 ```
 
 **⚠️ IMPORTANT**: Replace the icon path with your actual absolute path from the command above!
@@ -144,7 +144,7 @@ release-packager/ProGantt-win32-x64/ProGantt.exe
 For convenience, you can combine both steps:
 
 ```bash
-npm run build && npx electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite --icon="D:\YOUR\ABSOLUTE\PATH\TO\public\assets\icon.ico" --ignore="^/src$" --ignore="^/node_modules$" --ignore="^/.git" --ignore="^/.vscode" --ignore="^/release$" --ignore="^/release-packager$" --ignore="^/public$" --ignore="^/.cache$" --ignore="^/.agent$" --ignore="^/docs$" --ignore="\.tsx$" --ignore="\.ts$" --ignore="^/.*\.md$" --ignore="vite\.config" --ignore="tsconfig" --ignore="^/index\.html$" --ignore="^/metadata\.json$"
+npm run package-win
 ```
 
 ## Troubleshooting

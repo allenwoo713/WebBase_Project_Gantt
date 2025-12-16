@@ -24,7 +24,7 @@ description: Complete release process including verification, build, and packagi
 
 8. Package application
 // turbo
-9. $iconPath = (Resolve-Path "public\assets\icon.ico").Path; npx electron-packager . ProGantt --platform=win32 --arch=x64 --out=release-packager --overwrite --icon="$iconPath" --ignore="^/src$" --ignore="^/node_modules$" --ignore="^/.git" --ignore="^/.vscode" --ignore="^/release$" --ignore="^/release-packager$" --ignore="^/public$" --ignore="^/.cache$" --ignore="^/.agent$" --ignore="^/docs$" --ignore="\.tsx$" --ignore="\.ts$" --ignore="^/.*\.md$" --ignore="vite\.config" --ignore="tsconfig" --ignore="^/index\.html$" --ignore="^/metadata\.json$"
+9. npm run package-win
 
 10. Final Verification
     - Launch `release-packager/ProGantt-win32-x64/ProGantt.exe`
