@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Download, AlertTriangle, Lightbulb, CheckCircle2 } from 'lucide-react';
+import { X, Download, AlertTriangle, Lightbulb, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { AIAnalysisReport } from '../types';
 
 interface AIReportModalProps {
@@ -14,8 +14,12 @@ const AIReportModal: React.FC<AIReportModalProps> = ({ isOpen, onClose, report, 
     if (!isOpen || !report) return null;
 
     const handleExport = async () => {
+        const risksSection = report.risks && report.risks.length > 0
+            ? `## Risk Assessment\n| Task | Level | Description |\n|------|-------|-------------|\n${report.risks.map(r => `| **${r.taskName}** | ${r.level} | ${r.description} |`).join('\n')}`
+            : '## Risk Assessment\nNo significant risks identified.';
+
         const markdown = `
-# AI Dependency Analysis Report
+# AI Project Analysis Report
 **Generated:** ${new Date(report.timestamp).toLocaleString()}
 
 ## Summary
@@ -23,6 +27,8 @@ ${report.summary}
 
 ## Issues Identified
 ${report.issues.length > 0 ? report.issues.map(i => `- ${i}`).join('\n') : "No critical issues identified."}
+
+${risksSection}
 
 ## Suggested Dependencies
 | Predecessor | Successor | Confidence | Reasoning |
@@ -61,6 +67,15 @@ ${report.suggestions.map(s => `| **${s.sourceName}** | **${s.targetName}** | ${s
             } catch (e: any) {
                 if (onError) onError(e.message || "Export failed");
             }
+        }
+    };
+
+    const getRiskLevelStyle = (level: string) => {
+        switch (level) {
+            case 'High': return 'bg-red-100 text-red-800 border-red-200';
+            case 'Medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+            case 'Low': return 'bg-gray-100 text-gray-700 border-gray-200';
+            default: return 'bg-gray-100 text-gray-700 border-gray-200';
         }
     };
 
@@ -120,6 +135,32 @@ ${report.suggestions.map(s => `| **${s.sourceName}** | **${s.targetName}** | ${s
                         </div>
                     )}
 
+                    {/* Risks Assessment */}
+                    {report.risks && report.risks.length > 0 && (
+                        <div className="bg-orange-50 p-6 rounded-xl border border-orange-200">
+                            <div className="flex items-center gap-2 mb-4 text-orange-700">
+                                <ShieldAlert size={20} />
+                                <h3 className="text-lg font-bold">Risk Assessment</h3>
+                            </div>
+                            <div className="space-y-3">
+                                {report.risks.map((risk, idx) => (
+                                    <div key={idx} className={`p-4 rounded-lg border ${getRiskLevelStyle(risk.level)}`}>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="font-semibold text-sm">{risk.taskName}</span>
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${risk.level === 'High' ? 'bg-red-200 text-red-900' :
+                                                    risk.level === 'Medium' ? 'bg-yellow-200 text-yellow-900' :
+                                                        'bg-gray-200 text-gray-700'
+                                                }`}>
+                                                {risk.level}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm opacity-90">{risk.description}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Suggestions */}
                     <div>
                         <h3 className="text-lg font-bold text-gray-800 mb-4 px-2">Dependency Suggestions</h3>
@@ -167,3 +208,4 @@ ${report.suggestions.map(s => `| **${s.sourceName}** | **${s.targetName}** | ${s
 };
 
 export default AIReportModal;
+

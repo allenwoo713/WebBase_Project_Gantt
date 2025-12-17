@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.3-beta] - 2025-12-17
+
+### Enhanced
+- **AI Dependency Scanner**: Major prompt optimization with TPM/Auditor role-based analysis.
+  - Enhanced prompt with specific analysis rules (Chronological Logic, Duration Sanity, Missing Dependencies, Semantic Resource Dependencies).
+  - Added date formatting (YYYY-MM-DD) and duration context for better AI understanding.
+  - Passes existing dependencies to AI for context-aware analysis.
+  - New "Risk Assessment" section in AI report with color-coded severity levels (High/Medium/Low).
+  - Improved markdown export to include risk assessment table.
+  - Updated UI with orange-themed Risk Assessment panel and risk level badges.
+
 ## [1.0.3-alpha] - 2025-12-16
 
 ### Added

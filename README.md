@@ -2,7 +2,7 @@
 
 **A powerful, feature-rich Gantt chart application for project management**
 
-**Version:** 1.0.3-alpha | **Author:** Allen Woo | **Released:** 2025-12-16
+**Version:** 1.0.3-beta | **Author:** Allen Woo | **Released:** 2025-12-17
 
 ---
 
@@ -25,7 +25,7 @@
 - **Cost Management**: Track Plan Cost and Actual Cost based on member rates and task effort
 
 ###  Advanced Features
-- **AI Dependency Scanner**: AI-powered analysis to detect missing dependencies based on task names
+- **AI Dependency Scanner**: TPM/Auditor role-based AI analysis with risk assessment, chronological validation, and semantic dependency detection
 - **Progress Tracking**: Monitor task completion with visual progress bars
 - **Priority Levels**: Categorize tasks as High, Medium, or Low priority
 - **Task Status**: Track tasks through Not Started, Ongoing, and Done states

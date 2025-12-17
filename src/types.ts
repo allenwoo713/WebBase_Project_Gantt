@@ -131,10 +131,17 @@ export interface DependencySuggestion {
   confidence: 'High' | 'Medium' | 'Low';
 }
 
+export interface RiskItem {
+  taskName: string;
+  level: 'High' | 'Medium' | 'Low';
+  description: string;
+}
+
 export interface AIAnalysisReport {
   summary: string;
   suggestions: DependencySuggestion[];
   issues: string[]; // Circular or logical gaps
+  risks: RiskItem[]; // Risk assessment for tasks
   timestamp: number;
 }
 

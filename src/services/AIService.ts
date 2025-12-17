@@ -1,4 +1,4 @@
-import { Task, AISettings, DependencySuggestion, AIAnalysisReport, ProjectData, TaskStatus, Priority, TimeScale, ViewMode, DependencyType } from '../types';
+import { Task, AISettings, DependencySuggestion, AIAnalysisReport, ProjectData, TaskStatus, Priority, TimeScale, ViewMode, DependencyType, RiskItem, Dependency } from '../types';
 
 export class AIService {
     private settings: AISettings;
@@ -94,28 +94,64 @@ export class AIService {
         return data.choices?.[0]?.message?.content || '';
     }
 
-    async scanDependencies(tasks: Task[]): Promise<AIAnalysisReport> {
+    async scanDependencies(tasks: Task[], dependencies: Dependency[] = []): Promise<AIAnalysisReport> {
         if (!this.settings.apiKey) throw new Error("API Key is missing");
 
-        const taskList = tasks.map(t => `- ID: ${t.id}, Name: "${t.name}"`).join('\n');
+        // 1. Data Enhancement: Format dates and duration for better AI understanding
+        const simplifiedTasks = tasks.map(t => ({
+            id: t.id,
+            name: t.name,
+            start: new Date(t.start).toISOString().split('T')[0], // YYYY-MM-DD
+            end: new Date(t.end).toISOString().split('T')[0],
+            duration: `${t.duration} days`,
+            type: t.type
+        }));
 
+        // Simplify existing dependencies for context
+        const existingDependencies = dependencies.map(d => ({
+            source: d.sourceId,
+            target: d.targetId
+        }));
+
+        // 2. Enhanced Prompt with TPM/Auditor Role and Specific Rules
         const prompt = `
-You are a Project Management AI Assistant. Analyze the following list of tasks for a project. 
-Identify logical dependencies where one task should logically follow another based on standard industry practices (e.g., Construction, Software, Event Planning).
-Look for "Missing Dependencies" where Task B likely cannot start until Task A is finished, but no dependency exists (assume no dependencies are provided in this list, just infer from names).
+You are an expert Technical Project Manager (TPM) and Auditor.
+Your task is to analyze a project schedule (Gantt chart data) and identify RISKS, MISSING DEPENDENCIES, and ANOMALIES.
 
-Input Tasks:
-${taskList}
+Here is the Project Data:
+Tasks: ${JSON.stringify(simplifiedTasks)}
+Existing Dependencies: ${JSON.stringify(existingDependencies)}
 
-Return a JSON object with the following structure:
+CRITICAL ANALYSIS RULES:
+1. **Chronological Logic Check:** Look at 'start' and 'end' dates. If Task B logically depends on Task A, but Task B starts BEFORE Task A finishes, this is a CRITICAL RISK.
+2. **Duration Sanity Check:** Check 'duration'. If a complex task (e.g., "Validation", "Development", "Construction") is allocated unreasonably short time (e.g., < 3 days), flag it.
+3. **Missing Dependencies:** Identify tasks that should be linked based on standard engineering lifecycles (e.g., V-Model for Automotive, Waterfall for Construction).
+4. **Semantic Resource Dependency:** Analyze task names to identify implicit resource dependencies. For example, if a task involves "Development" or "Testing" of a component, check if the "Arrival" or "Availability" of that component is scheduled BEFORE it. (e.g., 'Driver Dev' implies 'Hardware' availability; 'Roofing' implies 'Walls').
+
+OUTPUT FORMAT (Strict JSON):
 {
-    "summary": "Brief summary of the analysis",
-    "suggestions": [
-        { "sourceId": "ID_OF_PREDECESSOR", "targetId": "ID_OF_SUCCESSOR", "reason": "Why this dependency is needed", "confidence": "High" }
+    "summary": "A brief executive summary of the project health (2-3 sentences). Mention the detected domain (e.g., Automotive, Software, Construction).",
+    "issues": [
+        "Detailed description of specific risks found. Mention Task Names and Dates explicitly. E.g., 'Task A starts on X but needs Task B which ends on Y'."
     ],
-    "issues": ["List of potential circular logic or gaps if any"]
+    "suggestions": [
+        {
+            "sourceId": "id of predecessor",
+            "targetId": "id of successor",
+            "reason": "Why this link is needed based on semantic logic.",
+            "confidence": "High" | "Medium" | "Low"
+        }
+    ],
+    "risks": [
+        {
+            "taskName": "Name of the risky task",
+            "level": "High" | "Medium" | "Low",
+            "description": "Why it is risky."
+        }
+    ]
 }
-Only return valid JSON. Do not include markdown code blocks.
+
+Return ONLY the JSON. Do not use Markdown formatting in the response.
 `;
 
         let rawResponse = '';
@@ -155,10 +191,18 @@ Only return valid JSON. Do not include markdown code blocks.
                 confidence: s.confidence || 'Medium'
             }));
 
+            // Parse risks from AI response
+            const risks: RiskItem[] = (result.risks || []).map((r: any) => ({
+                taskName: r.taskName || 'Unknown',
+                level: r.level || 'Medium',
+                description: r.description || ''
+            }));
+
             return {
                 summary: result.summary || "Analysis complete.",
                 suggestions,
                 issues: result.issues || [],
+                risks,
                 timestamp: Date.now()
             };
 

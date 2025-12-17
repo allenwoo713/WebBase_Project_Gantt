@@ -19,9 +19,9 @@ import AISettingsModal from './components/AISettingsModal';
 import AIReportModal from './components/AIReportModal';
 
 const STORAGE_KEY = 'progantt-data-v2';
-export const APP_VERSION = '1.0.3-alpha';
+export const APP_VERSION = '1.0.3-beta';
 const APP_AUTHOR = 'Allen Woo';
-export const APP_RELEASE_DATE = '2025-12-16';
+export const APP_RELEASE_DATE = '2025-12-17';
 
 const INITIAL_MEMBERS: Member[] = [
     { id: 'm1', name: 'Alice', role: 'Project Manager', color: '#3b82f6' },
@@ -604,7 +604,7 @@ const App: React.FC = () => {
         setIsScanning(true);
         try {
             const service = new AIService(aiSettings);
-            const report = await service.scanDependencies(tasks);
+            const report = await service.scanDependencies(tasks, dependencies);
             setAiReport(report);
             setIsAIReportOpen(true);
             showNotification('AI Analysis Complete', 'success');

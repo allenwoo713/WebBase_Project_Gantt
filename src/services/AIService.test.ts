@@ -31,7 +31,8 @@ const mockOpenAIResponse = {
                 suggestions: [
                     { sourceId: '1', targetId: '2', reason: 'Test Reason', confidence: 'High' }
                 ],
-                issues: []
+                issues: [],
+                risks: []
             })
         }
     }]
@@ -121,7 +122,8 @@ async function runTests() {
                             content: JSON.stringify({
                                 summary: 'Zhipu Test',
                                 suggestions: [],
-                                issues: []
+                                issues: [],
+                                risks: []
                             })
                         }
                     }]
